@@ -58,20 +58,27 @@ async function getGoogleAccessToken(clientEmail, privateKey) {
   return tokenJson.access_token;
 }
 
-async function ensureSheetHeader(sheetId, token) {
+async function ensureSheetHeader(sheetId, token, action = 'append') {
   const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:I1`;
   const res = await fetch(readUrl, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    const rawMsg = err?.error?.message || '';
+    if (rawMsg.toLowerCase().includes('permission')) {
+      throw new Error(
+        `Akses ditolak oleh Google Sheet. Jika memakai Service Account, tambahkan email (${process.env.GOOGLE_CLIENT_EMAIL}) sebagai Editor di menu Share Google Sheet, ATAU gunakan APPS_SCRIPT_BRIDGE_URL di .env/Vercel agar cukup link publik saja.`
+      );
+    }
     throw new Error(
-      err?.error?.message ||
-        'Tidak bisa mengakses Google Sheet. Pastikan akses link sudah diset ke "Anyone with the link -> Editor".'
+      rawMsg ||
+      'Tidak bisa mengakses Google Sheet. Pastikan akses link sudah diset ke "Anyone with the link -> Editor".'
     );
   }
   const data = await res.json();
   if (!data.values || data.values.length === 0) {
+    if (action === 'validate') return { empty: true };
     await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:I1?valueInputOption=USER_ENTERED`,
       {
@@ -83,7 +90,16 @@ async function ensureSheetHeader(sheetId, token) {
         body: JSON.stringify({ values: [HEADERS] }),
       }
     );
+    return { empty: true };
   }
+  const row1 = data.values[0] || [];
+  const matches = HEADERS.every((h, idx) => String(row1[idx] || '').trim() === h);
+  if (!matches) {
+    throw new Error(
+      `Format Google Sheet tidak sesuai. Gunakan Google Sheet kosong atau Sheet dengan header: ${HEADERS.join(', ')}`
+    );
+  }
+  return { empty: false };
 }
 
 export default async function handler(req, res) {
@@ -107,12 +123,29 @@ export default async function handler(req, res) {
     const privateKey = process.env.GOOGLE_PRIVATE_KEY;
     const bridgeUrl = process.env.APPS_SCRIPT_BRIDGE_URL;
 
-    // Mode 1: Google Service Account (Recommended on Vercel)
+    // Mode 1 (Prioritas untuk Link Publik): Apps Script Bridge URL
+    // Bekerja langsung dengan link Google Sheet apa saja yang diset "Anyone with the link -> Editor"
+    if (bridgeUrl) {
+      if (action === 'import') {
+        const r = await fetch(`${bridgeUrl}?sheetUrl=${encodeURIComponent(sheetUrl)}`);
+        const data = await r.json().catch(() => ({ ok: false, error: 'Respon Apps Script tidak valid' }));
+        return res.status(r.ok ? 200 : 400).json(data);
+      }
+      const r = await fetch(bridgeUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action, sheetUrl, rows }),
+      });
+      const data = await r.json().catch(() => ({ ok: r.ok }));
+      return res.status(r.ok && data.ok !== false ? 200 : 400).json(data);
+    }
+
+    // Mode 2: Google Service Account (perlu share sheet ke clientEmail sebagai Editor)
     if (clientEmail && privateKey) {
       const token = await getGoogleAccessToken(clientEmail, privateKey);
-      await ensureSheetHeader(sheetId, token);
+      await ensureSheetHeader(sheetId, token, action);
 
-      if (action === 'ping') {
+      if (action === 'ping' || action === 'validate') {
         return res.status(200).json({ ok: true, message: 'Google Sheet terhubung!' });
       }
 
@@ -150,7 +183,7 @@ export default async function handler(req, res) {
         Math.max(0, Number(r.total) || 0),
         String(r.paymentMethod || ''),
         String(r.notes || ''),
-        nowIso,
+        String(r.syncedAt || nowIso),
       ]);
 
       const appendRes = await fetch(
@@ -169,22 +202,6 @@ export default async function handler(req, res) {
         throw new Error(err?.error?.message || 'Gagal menulis ke Google Sheet');
       }
       return res.status(200).json({ ok: true, count: values.length });
-    }
-
-    // Mode 2: Central Apps Script Bridge URL (Optional Vercel Env Var)
-    if (bridgeUrl) {
-      if (action === 'import') {
-        const r = await fetch(`${bridgeUrl}?sheetUrl=${encodeURIComponent(sheetUrl)}`);
-        const data = await r.json();
-        return res.status(r.ok ? 200 : 400).json(data);
-      }
-      const r = await fetch(bridgeUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action, sheetUrl, rows }),
-      });
-      const data = await r.json().catch(() => ({ ok: r.ok }));
-      return res.status(r.ok ? 200 : 400).json(data);
     }
 
     return res.status(503).json({

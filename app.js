@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   SETTINGS: 'catatstruk_settings_v1',
   THEME: 'catatstruk_theme_v1',
   SHEET_SESSION: 'catatstruk_sheet_session_v1',
+  AUTH: 'catatstruk_auth_v1',
 };
 
 const SHEET_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 jam
@@ -22,27 +23,42 @@ const CATEGORIES = {
   'Lainnya': { color: '#64748b', icon: '📦' },
 };
 
-const GAS_CODE = `function doGet() {
+const GAS_CODE = `function doGet(e) {
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName('CatatStruk');
+    var sheetUrl = e && e.parameter && e.parameter.sheetUrl ? String(e.parameter.sheetUrl) : '';
+    var ss = sheetUrl ? SpreadsheetApp.openByUrl(sheetUrl) : SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('CatatStruk') || ss.getSheets()[0];
     if (!sheet || sheet.getLastRow() <= 1) {
       return jsonOut({ ok: true, rows: [] });
     }
     var values = sheet.getDataRange().getValues();
     var rows = [];
+    var currentMeta = null;
     for (var i = 1; i < values.length; i++) {
       var r = values[i];
-      if (!r[0] && !r[2]) continue;
+      var itemCell = String(r[4] || '').trim();
+      if (!r[0] && itemCell.toUpperCase() === 'TOTAL') continue;
+      if (!r[0] && !itemCell && !r[2]) continue;
+      if (r[0]) {
+        currentMeta = {
+          id: String(r[0]),
+          date: r[1] instanceof Date ? Utilities.formatDate(r[1], ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : String(r[1] || '').slice(0, 10),
+          merchant: String(r[2] || 'Struk'),
+          category: String(r[3] || 'Lainnya'),
+          paymentMethod: String(r[6] || 'QRIS'),
+          notes: String(r[7] || '')
+        };
+      }
+      if (!currentMeta) continue;
       rows.push({
-        id: String(r[0] || 'gs_' + i),
-        date: r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(r[1] || '').slice(0, 10),
-        merchant: String(r[2] || 'Struk'),
-        category: String(r[3] || 'Lainnya'),
-        itemsText: String(r[4] || ''),
+        id: currentMeta.id,
+        date: currentMeta.date,
+        merchant: currentMeta.merchant,
+        category: currentMeta.category,
+        itemsText: itemCell,
         total: Math.max(0, Number(r[5]) || 0),
-        paymentMethod: String(r[6] || 'QRIS'),
-        notes: String(r[7] || '')
+        paymentMethod: currentMeta.paymentMethod,
+        notes: currentMeta.notes
       });
     }
     return jsonOut({ ok: true, rows: rows });
@@ -58,8 +74,8 @@ function doPost(e) {
       return jsonOut({ ok: true, message: 'Connected to CatatStruk!' });
     }
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName('CatatStruk') || ss.insertSheet('CatatStruk');
+    var ss = data.sheetUrl ? SpreadsheetApp.openByUrl(String(data.sheetUrl)) : SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('CatatStruk') || ss.getSheets()[0] || ss.insertSheet('CatatStruk');
 
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
@@ -67,22 +83,60 @@ function doPost(e) {
         'Item', 'Total (Rp)', 'Metode Bayar', 'Catatan', 'Synced At'
       ]);
       sheet.getRange(1, 1, 1, 9).setFontWeight('bold');
+    } else {
+      var lastRow = sheet.getLastRow();
+      if (lastRow > 1) {
+        var lastItemVal = String(sheet.getRange(lastRow, 5).getValue() || '').trim().toUpperCase();
+        var lastIdVal = String(sheet.getRange(lastRow, 1).getValue() || '').trim();
+        if (!lastIdVal && lastItemVal === 'TOTAL') sheet.deleteRow(lastRow);
+      }
     }
 
     var rows = Array.isArray(data.rows) ? data.rows : [data];
+    var groups = [];
+    var groupMap = {};
     rows.forEach(function(r) {
-      sheet.appendRow([
-        r.id || '',
-        r.date || '',
-        r.merchant || '',
-        r.category || '',
-        r.itemsText || '',
-        Number(r.total) || 0,
-        r.paymentMethod || '',
-        r.notes || '',
-        new Date().toISOString()
-      ]);
+      var key = String(r.id || ('row_' + groups.length));
+      if (!groupMap[key]) {
+        groupMap[key] = [];
+        groups.push(groupMap[key]);
+      }
+      groupMap[key].push(r);
     });
+
+    var mergeCols = [1, 2, 3, 4, 7, 8, 9];
+    groups.forEach(function(grp) {
+      var startRow = sheet.getLastRow() + 1;
+      grp.forEach(function(r, idx) {
+        var syncedText = r.syncedAt
+          ? "'" + String(r.syncedAt)
+          : "'" + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+        sheet.appendRow([
+          idx === 0 ? (r.id || '') : '',
+          idx === 0 ? (r.date || '') : '',
+          idx === 0 ? (r.merchant || '') : '',
+          idx === 0 ? (r.category || '') : '',
+          r.itemsText || '',
+          Math.max(0, Number(r.total) || 0),
+          idx === 0 ? (r.paymentMethod || '') : '',
+          idx === 0 ? (r.notes || '') : '',
+          idx === 0 ? syncedText : ''
+        ]);
+      });
+      if (grp.length > 1) {
+        mergeCols.forEach(function(col) {
+          sheet.getRange(startRow, col, grp.length, 1).merge().setVerticalAlignment('middle');
+        });
+      }
+    });
+
+    var lastDataRow = sheet.getLastRow();
+    if (lastDataRow >= 2) {
+      var totalRow = lastDataRow + 1;
+      sheet.appendRow(['', '', '', '', 'TOTAL', '=SUM(F2:F' + lastDataRow + ')', '', '', '']);
+      sheet.getRange(totalRow, 1, 1, 9).setFontWeight('bold').setBackground('#e6f4f1');
+      sheet.getRange(2, 6, totalRow - 1, 1).setNumberFormat('"Rp "#,##0');
+    }
 
     return jsonOut({ ok: true, count: rows.length });
   } catch (err) {
@@ -147,7 +201,7 @@ let state = {
   transactions: [],
   settings: {
     geminiKey: '',
-    geminiModel: 'gemini-2.5-flash',
+    geminiModel: 'gemini-flash-lite-latest',
     sheetUrl: '',
     autoSync: true,
     monthlyBudget: 3000000,
@@ -169,6 +223,13 @@ function getCurrentMonth() {
 function getTodayDate() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getLocalSyncedAt() {
+  const d = new Date();
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+  return `${date} ${time}`;
 }
 
 function formatRupiah(num) {
@@ -217,65 +278,48 @@ function showToast(msg, type = 'info') {
   setTimeout(() => el.remove(), 3400);
 }
 
-// Persistence
+// Persistence (Link Google Sheet disimpan di database user, bukan localStorage)
 function loadSheetSession() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.SHEET_SESSION);
-    if (!raw) return '';
-    const session = JSON.parse(raw);
-    if (!session || !session.url || !session.expiresAt || Date.now() >= session.expiresAt) {
-      localStorage.removeItem(STORAGE_KEYS.SHEET_SESSION);
-      return '';
-    }
-    return String(session.url);
-  } catch {
-    localStorage.removeItem(STORAGE_KEYS.SHEET_SESSION);
-    return '';
-  }
+  return String(state.auth?.user?.sheet_url || '').trim();
 }
 
 function saveSheetSession(url) {
   const clean = String(url || '').trim();
-  if (!clean) {
-    localStorage.removeItem(STORAGE_KEYS.SHEET_SESSION);
-    state.settings.sheetUrl = '';
-    state.settings.sheetExpiresAt = 0;
-    return;
-  }
-  const expiresAt = Date.now() + SHEET_SESSION_TTL_MS;
-  localStorage.setItem(
-    STORAGE_KEYS.SHEET_SESSION,
-    JSON.stringify({ url: clean, expiresAt })
-  );
   state.settings.sheetUrl = clean;
-  state.settings.sheetExpiresAt = expiresAt;
+  if (state.auth?.user) {
+    state.auth.user.sheet_url = clean;
+    saveAuthSession(state.auth);
+  }
 }
 
-function getSheetRemainingHours() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.SHEET_SESSION);
-    if (!raw) return 0;
-    const session = JSON.parse(raw);
-    const diff = (session?.expiresAt || 0) - Date.now();
-    if (diff <= 0) {
-      localStorage.removeItem(STORAGE_KEYS.SHEET_SESSION);
-      state.settings.sheetUrl = '';
-      return 0;
-    }
-    return Math.max(1, Math.ceil(diff / (60 * 60 * 1000)));
-  } catch {
-    return 0;
+async function saveSheetUrlToDb(url) {
+  const clean = String(url || '').trim();
+  const res = await fetch('/api/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'save_sheet',
+      token: state.auth?.token,
+      sheetUrl: clean,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) {
+    throw new Error(data.error || 'Gagal menyimpan link Google Sheet ke database.');
   }
+  saveAuthSession({ user: data.user, token: state.auth.token });
+  state.settings.sheetUrl = data.user.sheet_url || '';
 }
 
 function loadState() {
   try {
-    const rawTx = localStorage.getItem(STORAGE_KEYS.TXS);
-    if (rawTx) state.transactions = JSON.parse(rawTx);
+    localStorage.removeItem(STORAGE_KEYS.SHEET_SESSION);
+    state.transactions = [];
     const rawSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (rawSettings) state.settings = { ...state.settings, ...JSON.parse(rawSettings) };
-    // Ambil link Google Sheet dari session 24 jam (otomatis terhapus jika expired)
-    state.settings.sheetUrl = loadSheetSession();
+    if (['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-3.5-flash-lite'].includes(state.settings.geminiModel)) {
+      state.settings.geminiModel = 'gemini-flash-lite-latest';
+    }
     const theme = localStorage.getItem(STORAGE_KEYS.THEME) || 'light';
     applyTheme(theme);
   } catch (e) {
@@ -284,7 +328,7 @@ function loadState() {
 }
 
 function saveTransactions() {
-  localStorage.setItem(STORAGE_KEYS.TXS, JSON.stringify(state.transactions));
+  // Data transaksi selalu disinkronkan langsung dengan Google Sheet (tanpa cache localStorage)
 }
 
 function saveSettings() {
@@ -379,13 +423,13 @@ function createDemoReceiptImage(demo) {
 // Gemini AI Receipt Extraction
 async function extractReceiptWithGemini(dataUrl) {
   const apiKey = state.settings.geminiKey.trim();
-  const model = state.settings.geminiModel || 'gemini-2.5-flash';
+  const model = state.settings.geminiModel || 'gemini-flash-lite-latest';
   const base64Data = dataUrl.split(',')[1];
 
-  const prompt = `Kamu adalah asisten pencatat keuangan Indonesia. Baca gambar struk pembayaran ini dan ekstrak datanya ke JSON valid dengan struktur persis berikut:
+  const prompt = `Kamu adalah asisten pencatat keuangan Indonesia yang ahli membaca struk cetak maupun nota tulisan tangan. Baca gambar struk/nota pembayaran ini dan ekstrak datanya ke JSON valid dengan struktur persis berikut:
 {
-  "merchant": "nama toko/merchant",
-  "date": "YYYY-MM-DD (gunakan ${getTodayDate()} jika tidak terbaca)",
+  "merchant": "nama toko/bengkel/merchant (lihat kop/stempel jika ada)",
+  "date": "YYYY-MM-DD (konversi format DD-MM-YY atau DD/MM/YY jika ada; gunakan ${getTodayDate()} jika tidak terbaca)",
   "category": "salah satu dari: Makanan & Minuman, Belanja, Transportasi, Tagihan, Kesehatan, Hiburan, Lainnya",
   "total": 0,
   "paymentMethod": "salah satu dari: QRIS, Tunai, Debit, Kredit, E-Wallet, Transfer",
@@ -394,7 +438,9 @@ async function extractReceiptWithGemini(dataUrl) {
   ],
   "notes": "ringkasan singkat 2-4 kata"
 }
-Pastikan total dan price berupa angka bulat Rupiah tanpa titik/koma.`;
+Aturan penting:
+- Jika harga tertulis memakai 'K' atau 'rb' (misal 350K, 80K, 980K), konversi menjadi angka penuh Rupiah (350000, 80000, 980000).
+- Pastikan total dan price berupa angka bulat Rupiah >= 0 tanpa titik/koma.`;
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
@@ -444,44 +490,224 @@ Pastikan total dan price berupa angka bulat Rupiah tanpa titik/koma.`;
   };
 }
 
+function syncScrollLock() {
+  const overlayOpen = !$('scan-overlay').classList.contains('hidden');
+  const modalOpen = Array.from(document.querySelectorAll('.modal')).some((m) => !m.classList.contains('hidden'));
+  document.body.classList.toggle('scroll-locked', overlayOpen || modalOpen);
+}
+
+let slowLoaderTimer = null;
+
+function showLoader({ mode = 'scan', thumb = '', title = '', desc = '' }) {
+  const overlay = $('scan-overlay');
+  const scannerBox = $('scanner-box');
+  const syncBox = $('sync-anim-box');
+  const slowNotice = $('loader-slow-notice');
+  if (mode === 'sync') {
+    scannerBox.classList.add('hidden');
+    syncBox.classList.remove('hidden');
+  } else {
+    syncBox.classList.add('hidden');
+    scannerBox.classList.remove('hidden');
+    if (thumb) $('scan-preview-img').src = thumb;
+  }
+  $('scan-status-title').textContent = title;
+  $('scan-status-desc').textContent = desc;
+  if (slowNotice) slowNotice.classList.add('hidden');
+  if (slowLoaderTimer) clearTimeout(slowLoaderTimer);
+  slowLoaderTimer = setTimeout(() => {
+    if (!overlay.classList.contains('hidden') && slowNotice) {
+      slowNotice.classList.remove('hidden');
+    }
+  }, 30000);
+
+  overlay.classList.remove('hidden');
+  syncScrollLock();
+}
+
+function hideLoader() {
+  if (slowLoaderTimer) {
+    clearTimeout(slowLoaderTimer);
+    slowLoaderTimer = null;
+  }
+  const slowNotice = $('loader-slow-notice');
+  if (slowNotice) slowNotice.classList.add('hidden');
+  $('scan-overlay').classList.add('hidden');
+  syncScrollLock();
+}
+
+function parseLocalReceiptText(rawText) {
+  const lines = String(rawText || '')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const merchant = lines[0] ? lines[0].slice(0, 48) : 'Struk Belanja';
+
+  // Cari tanggal (DD/MM/YYYY, DD-MM-YYYY, atau YYYY-MM-DD)
+  let date = getTodayDate();
+  for (const line of lines) {
+    const iso = line.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (iso) {
+      date = `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+      break;
+    }
+    const dmy = line.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
+    if (dmy) {
+      const y = dmy[3].length === 2 ? `20${dmy[3]}` : dmy[3];
+      date = `${y}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+      break;
+    }
+  }
+
+  // Deteksi metode bayar & kategori
+  const fullUpper = lines.join(' ').toUpperCase();
+  let paymentMethod = 'QRIS';
+  if (fullUpper.includes('TUNAI') || fullUpper.includes('CASH')) paymentMethod = 'Tunai';
+  else if (fullUpper.includes('DEBIT')) paymentMethod = 'Debit';
+  else if (fullUpper.includes('KREDIT') || fullUpper.includes('CREDIT')) paymentMethod = 'Kredit';
+  else if (fullUpper.includes('GOPAY') || fullUpper.includes('OVO') || fullUpper.includes('DANA') || fullUpper.includes('SHOPEEPAY')) paymentMethod = 'E-Wallet';
+
+  let category = 'Belanja';
+  if (/KOPI|CAFE|RESTO|WARUNG|MAKAN|BAKERY|MINUM|MIE|NASI/.test(fullUpper)) category = 'Makanan & Minuman';
+  else if (/APOTEK|FARMA|KLINIK|OBAT/.test(fullUpper)) category = 'Kesehatan';
+  else if (/BENGKEL|PERTAMINA|SPBU|GRAB|GOJEK|PARKIR|TOL/.test(fullUpper)) category = 'Transportasi';
+  else if (/PLN|PDAM|LISTRIK|INTERNET|PULSA/.test(fullUpper)) category = 'Tagihan';
+
+  // Ekstrak item & total dari angka di akhir baris
+  const parseAmount = (str) => {
+    const clean = str.replace(/\s+/g, '');
+    const kMatch = clean.match(/^(\d+)(?:[.,](\d+))?[kK]$/);
+    if (kMatch) return Math.round(Number(`${kMatch[1]}.${kMatch[2] || 0}`) * 1000);
+    const digits = clean.replace(/[^\d]/g, '');
+    return digits ? Math.max(0, parseInt(digits, 10) || 0) : 0;
+  };
+
+  let total = 0;
+  const items = [];
+  for (const line of lines.slice(1)) {
+    const upper = line.toUpperCase();
+    const amtMatch = line.match(/(?:RP\.?\s*)?(\d[\d.,]*[kK]?)\s*$/);
+    if (!amtMatch) continue;
+    const val = parseAmount(amtMatch[1]);
+    if (val <= 0) continue;
+
+    if (/(GRAND\s*TOTAL|TOTAL\s*BAYAR|TOTAL\s*BELANJA|\bTOTAL\b|JUMLAH\s*RP)/.test(upper)) {
+      if (val > total) total = val;
+      continue;
+    }
+    if (/(TUNAI|KEMBALI|CHANGE|SUBTOTAL|PPN|PAJAK|DISKON)/.test(upper)) continue;
+
+    const itemName = line.slice(0, amtMatch.index).replace(/[-:]+$/, '').trim();
+    if (itemName.length >= 2) {
+      items.push({ name: itemName.slice(0, 48), qty: 1, price: val });
+    }
+  }
+
+  if (total === 0 && items.length > 0) {
+    total = items.reduce((s, i) => s + i.price, 0);
+  }
+
+  return {
+    merchant,
+    date,
+    category,
+    total,
+    paymentMethod,
+    items,
+    notes: 'Hasil OCR Lokal (Tanpa API)',
+  };
+}
+
+let tesseractLoaderPromise = null;
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (!tesseractLoaderPromise) {
+    tesseractLoaderPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.onload = () => resolve(window.Tesseract);
+      s.onerror = () => reject(new Error('Gagal memuat mesin OCR lokal.'));
+      document.head.appendChild(s);
+    });
+  }
+  return tesseractLoaderPromise;
+}
+
+async function extractReceiptLocally(dataUrl) {
+  const Tesseract = await loadTesseract();
+  const result = await Tesseract.recognize(dataUrl, 'ind+eng');
+  const text = result?.data?.text || '';
+  return parseLocalReceiptText(text);
+}
+
 // Handle Image Upload / Camera
 async function handleReceiptImage(file) {
   if (!file) return;
-  const overlay = $('scan-overlay');
   try {
     const compressedForAI = await compressImage(file, 1024, 0.8);
     const thumb = await compressImage(compressedForAI, 340, 0.62);
     state.pendingThumb = thumb;
 
-    $('scan-preview-img').src = thumb;
-    overlay.classList.remove('hidden');
+    showLoader({
+      mode: 'scan',
+      thumb,
+      title: 'Membaca Struk...',
+      desc: 'Mengekstrak nama toko, item belanja, dan total.',
+    });
 
-    let extracted;
+    let extracted = null;
     if (state.settings.geminiKey.trim()) {
-      $('scan-status-title').textContent = 'Membaca Struk dengan Gemini AI...';
-      $('scan-status-desc').textContent = 'Mengekstrak nama toko, item belanja, dan total.';
-      extracted = await extractReceiptWithGemini(compressedForAI);
-      showToast('Struk berhasil dibaca AI!', 'success');
+      try {
+        extracted = await extractReceiptWithGemini(compressedForAI);
+        showToast('Struk berhasil dibaca AI!', 'success');
+      } catch {
+        extracted = null;
+      }
     } else {
-      $('scan-status-title').textContent = 'Memproses Foto Struk...';
-      $('scan-status-desc').textContent = 'Mode manual aktif (isi Gemini API Key di Pengaturan untuk auto-scan).';
-      await new Promise((r) => setTimeout(r, 700));
-      extracted = {
-        merchant: '',
-        date: getTodayDate(),
-        category: 'Belanja',
-        total: '',
-        paymentMethod: 'QRIS',
-        items: [],
-        notes: '',
-      };
-      showToast('Foto siap! Lengkapi detail struk atau masukkan Gemini Key.', 'info');
+      const base64Data = compressedForAI.split(',')[1];
+      const serverRes = await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: base64Data,
+          model: state.settings.geminiModel || 'gemini-flash-lite-latest',
+          today: getTodayDate(),
+        }),
+      }).catch(() => null);
+
+      const serverJson = serverRes ? await serverRes.json().catch(() => null) : null;
+      if (serverRes && serverRes.ok && serverJson?.ok && serverJson.data) {
+        extracted = serverJson.data;
+        showToast('Struk berhasil dibaca AI!', 'success');
+      }
     }
 
-    overlay.classList.add('hidden');
+    // Fallback ke OCR Lokal di Browser (100% Tanpa API Key / saat API limit)
+    if (!extracted) {
+      $('scan-status-title').textContent = 'Membaca Struk dengan OCR Lokal...';
+      $('scan-status-desc').textContent = 'Berjalan langsung di browser tanpa API Key.';
+      try {
+        extracted = await extractReceiptLocally(compressedForAI);
+        showToast('Struk dibaca dengan OCR Lokal! Silakan cek kembali.', 'info');
+      } catch {
+        extracted = {
+          merchant: '',
+          date: getTodayDate(),
+          category: 'Belanja',
+          total: '',
+          paymentMethod: 'QRIS',
+          items: [],
+          notes: '',
+        };
+        showToast('Lengkapi detail struk secara manual.', 'info');
+      }
+    }
+
+    hideLoader();
     openReceiptModal({ ...extracted, thumb });
   } catch (err) {
-    overlay.classList.add('hidden');
+    hideLoader();
     console.error(err);
     showToast(err.message || 'Gagal memproses gambar struk.', 'error');
   }
@@ -493,13 +719,15 @@ async function runDemoScan() {
   const demoDataUrl = createDemoReceiptImage(demo);
   const thumb = await compressImage(demoDataUrl, 340, 0.65);
 
-  $('scan-preview-img').src = thumb;
-  $('scan-status-title').textContent = 'Simulasi Scan Struk AI...';
-  $('scan-status-desc').textContent = `Membaca struk ${demo.merchant}...`;
-  $('scan-overlay').classList.remove('hidden');
+  showLoader({
+    mode: 'scan',
+    thumb,
+    title: 'Simulasi Scan Struk AI...',
+    desc: `Membaca struk ${demo.merchant}...`,
+  });
 
   await new Promise((r) => setTimeout(r, 1100));
-  $('scan-overlay').classList.add('hidden');
+  hideLoader();
 
   openReceiptModal({
     ...demo,
@@ -512,10 +740,12 @@ async function runDemoScan() {
 // Modal Controls
 function openModal(id) {
   $(id).classList.remove('hidden');
+  syncScrollLock();
 }
 
 function closeModal(id) {
   $(id).classList.add('hidden');
+  syncScrollLock();
 }
 
 function itemsToText(items) {
@@ -663,6 +893,14 @@ function isValidSheetUrl(url) {
 }
 
 function requireSheetConfigured() {
+  if (!state.auth?.user) {
+    openModal('modal-login');
+    return false;
+  }
+  if (!isPremiumUser()) {
+    showToast('Fitur Foto Struk & Sync Google Sheet khusus akun Premium (is_premium = Y). Silakan coba Demo Scan Struk Contoh!', 'info');
+    return false;
+  }
   state.settings.sheetUrl = loadSheetSession();
   if (isValidSheetUrl(state.settings.sheetUrl)) return true;
   renderStatusPills();
@@ -719,23 +957,71 @@ async function postToGoogleSheet(payload) {
   }
 }
 
+function expandTransactionToSheetRows(tx) {
+  const syncedAt = getLocalSyncedAt();
+  const items = Array.isArray(tx.items)
+    ? tx.items.filter((i) => (i.name || '').trim() !== '' || (Number(i.price) || 0) > 0)
+    : [];
+
+  if (items.length === 0) {
+    return [
+      {
+        id: tx.id,
+        date: tx.date,
+        merchant: tx.merchant,
+        category: tx.category,
+        itemsText: tx.notes || tx.merchant,
+        total: Math.max(0, Number(tx.total) || 0),
+        paymentMethod: tx.paymentMethod,
+        notes: tx.notes || '',
+        syncedAt,
+      },
+    ];
+  }
+
+  const itemsSum = items.reduce((s, i) => s + Math.max(0, Number(i.price) || 0), 0);
+  const txTotal = Math.max(0, Number(tx.total) || 0);
+
+  const rows = items.map((item, idx) => {
+    const qty = Math.max(1, Number(item.qty) || 1);
+    const price = Math.max(0, Number(item.price) || 0);
+    const rowTotal = itemsSum > 0 ? price : (idx === 0 ? txTotal : 0);
+    return {
+      id: tx.id,
+      date: tx.date,
+      merchant: tx.merchant,
+      category: tx.category,
+      itemsText: `${item.name || 'Item'} (x${qty})`,
+      total: rowTotal,
+      paymentMethod: tx.paymentMethod,
+      notes: tx.notes || '',
+      syncedAt,
+    };
+  });
+
+  if (itemsSum > 0 && txTotal > itemsSum) {
+    rows.push({
+      id: tx.id,
+      date: tx.date,
+      merchant: tx.merchant,
+      category: tx.category,
+      itemsText: 'Biaya Lain / Pajak',
+      total: txTotal - itemsSum,
+      paymentMethod: tx.paymentMethod,
+      notes: tx.notes || '',
+      syncedAt,
+    });
+  }
+
+  return rows;
+}
+
 async function syncSingleTransaction(tx) {
   if (!state.settings.sheetUrl.trim()) return false;
   try {
     await postToGoogleSheet({
       action: 'append',
-      rows: [
-        {
-          id: tx.id,
-          date: tx.date,
-          merchant: tx.merchant,
-          category: tx.category,
-          itemsText: itemsToText(tx.items).replace(/\n/g, '; '),
-          total: tx.total,
-          paymentMethod: tx.paymentMethod,
-          notes: tx.notes,
-        },
-      ],
+      rows: expandTransactionToSheetRows(tx),
     });
     tx.synced = true;
     saveTransactions();
@@ -758,19 +1044,15 @@ async function syncAllPending() {
     return;
   }
 
+  showLoader({
+    mode: 'sync',
+    title: 'Mengexport ke Google Sheet...',
+    desc: `Mengirim ${pending.length} struk ke Google Sheet Anda.`,
+  });
   try {
     await postToGoogleSheet({
       action: 'append',
-      rows: pending.map((tx) => ({
-        id: tx.id,
-        date: tx.date,
-        merchant: tx.merchant,
-        category: tx.category,
-        itemsText: itemsToText(tx.items).replace(/\n/g, '; '),
-        total: tx.total,
-        paymentMethod: tx.paymentMethod,
-        notes: tx.notes,
-      })),
+      rows: pending.flatMap((tx) => expandTransactionToSheetRows(tx)),
     });
     pending.forEach((tx) => { tx.synced = true; });
     saveTransactions();
@@ -778,6 +1060,8 @@ async function syncAllPending() {
     showToast(`${pending.length} struk berhasil diexport ke Google Sheet!`, 'success');
   } catch (err) {
     showToast(`Gagal export: ${err.message}`, 'error');
+  } finally {
+    hideLoader();
   }
 }
 
@@ -796,15 +1080,24 @@ function parseItemsTextToArray(itemsText) {
     });
 }
 
-async function importFromGoogleSheet() {
-  const url = ($('setting-sheet-url')?.value || state.settings.sheetUrl || '').trim();
+async function importFromGoogleSheet({ targetUrl = '', silentIfEmpty = false, validateBeforeSave = false } = {}) {
+  const url = (targetUrl || $('setting-sheet-url')?.value || state.settings.sheetUrl || '').trim();
   if (!isValidSheetUrl(url)) {
     showToast('Masukkan link Google Sheet publik yang valid terlebih dahulu.', 'error');
-    return;
+    return false;
   }
-  state.settings.sheetUrl = url;
-  saveSettings();
+  if (!validateBeforeSave) {
+    state.settings.sheetUrl = url;
+    saveSettings();
+  }
 
+  showLoader({
+    mode: 'sync',
+    title: validateBeforeSave ? 'Memeriksa Format Google Sheet...' : 'Menarik Data dari Google Sheet...',
+    desc: validateBeforeSave
+      ? 'Memastikan Google Sheet masih kosong atau sesuai format header.'
+      : 'Memeriksa & mengambil riwayat data dari Google Sheet Anda.',
+  });
   try {
     let data;
     if (isGoogleSpreadsheetUrl(url)) {
@@ -822,64 +1115,175 @@ async function importFromGoogleSheet() {
       if (data.ok === false) throw new Error(data.error || 'Gagal membaca Sheet');
     }
 
+    if (validateBeforeSave) {
+      await saveSheetUrlToDb(url);
+      state.settings.autoSync = true;
+      saveSettings();
+    }
+
     const incoming = Array.isArray(data.rows) ? data.rows : [];
-    const existingIds = new Set(state.transactions.map((t) => t.id));
-    let added = 0;
+    const grouped = new Map();
 
     incoming.forEach((r) => {
       const id = String(r.id || '').trim() || `gs_${r.date}_${r.merchant}_${r.total}`;
-      if (existingIds.has(id)) return;
-      existingIds.add(id);
-      state.transactions.push({
-        id,
-        date: /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : getTodayDate(),
-        merchant: String(r.merchant || 'Struk'),
-        category: CATEGORIES[r.category] ? r.category : 'Lainnya',
-        items: parseItemsTextToArray(r.itemsText),
-        total: Math.max(0, Math.round(Number(r.total) || 0)),
-        paymentMethod: r.paymentMethod || 'QRIS',
-        notes: r.notes || '',
-        thumb: '',
-        synced: true,
-        createdAt: Date.now(),
-      });
-      added++;
+      const rowPrice = Math.max(0, Math.round(Number(r.total) || 0));
+      const itemLabel = String(r.itemsText || '').trim();
+      const parsedItems = itemLabel.includes(';')
+        ? parseItemsTextToArray(itemLabel)
+        : (() => {
+            const m = itemLabel.match(/^(.*?)\s*\(x(\d+)\)$/i);
+            if (m) return [{ name: m[1].trim(), qty: Math.max(1, Number(m[2]) || 1), price: rowPrice }];
+            return itemLabel ? [{ name: itemLabel, qty: 1, price: rowPrice }] : [];
+          })();
+
+      if (!grouped.has(id)) {
+        grouped.set(id, {
+          id,
+          date: /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : getTodayDate(),
+          merchant: String(r.merchant || 'Struk'),
+          category: CATEGORIES[r.category] ? r.category : 'Lainnya',
+          items: [...parsedItems],
+          total: rowPrice,
+          paymentMethod: r.paymentMethod || 'QRIS',
+          notes: r.notes || '',
+          thumb: '',
+          synced: true,
+          createdAt: Date.now(),
+        });
+      } else {
+        const entry = grouped.get(id);
+        entry.items.push(...parsedItems);
+        entry.total += rowPrice;
+      }
     });
+
+    // Mirroring 1:1 dengan isi Google Sheet (tetap pertahankan transaksi lokal yang belum tersinkron)
+    const existingThumbs = new Map(state.transactions.map((t) => [t.id, t.thumb || '']));
+    const unsyncedLocal = state.transactions.filter((t) => !t.synced && !grouped.has(t.id));
+    const mirroredFromSheet = Array.from(grouped.values()).map((tx) => ({
+      ...tx,
+      thumb: existingThumbs.get(tx.id) || '',
+    }));
+
+    state.transactions = [...unsyncedLocal, ...mirroredFromSheet];
+    const added = mirroredFromSheet.length;
 
     saveTransactions();
     renderAll();
-    showToast(added > 0 ? `${added} data berhasil diimport dari Google Sheet!` : 'Semua data di Google Sheet sudah ada di aplikasi.', 'success');
+    if (added > 0) {
+      showToast(`Sinkron mirror berhasil: ${added} struk dari Google Sheet!`, 'success');
+    } else if (silentIfEmpty) {
+      showToast('Google Sheet terhubung! Siap foto struk.', 'success');
+    } else {
+      showToast('Google Sheet masih kosong.', 'info');
+    }
+    return true;
   } catch (err) {
+    if (validateBeforeSave) {
+      return err.message || 'Gagal memeriksa Google Sheet.';
+    }
     showToast(`Gagal import: ${err.message}`, 'error');
+    return false;
+  } finally {
+    hideLoader();
   }
+}
+
+function isPremiumUser() {
+  return state.auth?.user?.is_premium === 'Y';
+}
+
+function loadAuthSession() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.AUTH);
+    if (!raw) return { user: null, token: '' };
+    const parsed = JSON.parse(raw);
+    return parsed?.token && parsed?.user ? parsed : { user: null, token: '' };
+  } catch {
+    return { user: null, token: '' };
+  }
+}
+
+function saveAuthSession(authData) {
+  state.auth = authData;
+  if (authData?.token && authData?.user) {
+    localStorage.setItem(STORAGE_KEYS.AUTH, JSON.stringify(authData));
+  } else {
+    localStorage.removeItem(STORAGE_KEYS.AUTH);
+  }
+}
+
+function logoutUser() {
+  saveAuthSession({ user: null, token: '' });
+  saveSheetSession('');
+  state.transactions = [];
+  closeModal('modal-account');
+  closeModal('modal-require-sheet');
+  renderAll();
+  $('login-error').classList.add('hidden');
+  $('login-password').value = '';
+  openModal('modal-login');
+  showToast('Anda telah logout.', 'info');
 }
 
 // Rendering
 function renderStatusPills() {
-  const hasAI = Boolean(state.settings.geminiKey.trim());
-  const remHours = getSheetRemainingHours();
-  const hasSheet = isValidSheetUrl(state.settings.sheetUrl) && remHours > 0;
+  const user = state.auth?.user;
+  const premium = isPremiumUser();
+  const hasSheet = premium && isValidSheetUrl(state.settings.sheetUrl);
 
-  $('pill-ai').classList.toggle('connected', hasAI);
-  $('pill-ai-text').textContent = hasAI ? 'Scan AI: Aktif' : 'Mode Coba (Demo)';
+  if (!user) {
+    $('pill-sheet').classList.remove('connected');
+    $('pill-sheet-text').textContent = 'Belum Login';
+  } else if (!premium) {
+    $('pill-sheet').classList.remove('connected');
+    $('pill-sheet-text').textContent = `${user.username} (Demo)`;
+  } else {
+    $('pill-sheet').classList.toggle('connected', hasSheet);
+    $('pill-sheet-text').textContent = hasSheet
+      ? 'Google Sheet: Aktif'
+      : 'Google Sheet: Belum Terhubung';
+  }
 
-  $('pill-sheet').classList.toggle('connected', hasSheet);
-  $('pill-sheet-text').textContent = hasSheet
-    ? `Google Sheet: Aktif (${remHours}j)`
-    : 'Google Sheet: Belum Terhubung';
+  const canOpenDirect = hasSheet && isGoogleSpreadsheetUrl(state.settings.sheetUrl);
+  const openBtn = $('btn-open-sheet');
+  const openSettingsBtn = $('btn-open-sheet-settings');
+  if (openBtn) {
+    openBtn.classList.toggle('hidden', !canOpenDirect);
+    if (canOpenDirect) openBtn.href = state.settings.sheetUrl.trim();
+  }
+  if (openSettingsBtn) {
+    openSettingsBtn.classList.toggle('hidden', !canOpenDirect);
+    if (canOpenDirect) openSettingsBtn.href = state.settings.sheetUrl.trim();
+  }
 }
+
+let hasUserSelectedMonth = false;
 
 function populateMonthFilter() {
   const select = $('month-filter');
   const months = new Set([getCurrentMonth()]);
+  const monthsWithData = new Set();
   state.transactions.forEach((t) => {
-    if (t.date && t.date.length >= 7) months.add(t.date.slice(0, 7));
+    if (t.date && t.date.length >= 7) {
+      const ym = t.date.slice(0, 7);
+      months.add(ym);
+      monthsWithData.add(ym);
+    }
   });
   const sorted = Array.from(months).sort().reverse();
   select.innerHTML = sorted
     .map((m) => `<option value="${m}">${formatMonthLabel(m)}</option>`)
     .join('');
-  if (!sorted.includes(state.selectedMonth)) state.selectedMonth = sorted[0];
+
+  // Default ke bulan paling lama yang memiliki data (kecuali user sudah memilih bulan manual)
+  if (!hasUserSelectedMonth && monthsWithData.size > 0) {
+    state.selectedMonth = Array.from(monthsWithData).sort()[0];
+  } else if (!monthsWithData.has(state.selectedMonth) && monthsWithData.size > 0) {
+    state.selectedMonth = Array.from(monthsWithData).sort()[0];
+  } else if (!sorted.includes(state.selectedMonth)) {
+    state.selectedMonth = sorted[0];
+  }
   select.value = state.selectedMonth;
 }
 
@@ -1097,38 +1501,245 @@ function bindEvents() {
     applyTheme(next);
   });
 
-  $('btn-settings').addEventListener('click', openSettingsModal);
-  $('nav-settings').addEventListener('click', openSettingsModal);
+  $('nav-sync').addEventListener('click', () => {
+    if (requireSheetConfigured()) importFromGoogleSheet({ silentIfEmpty: false });
+  });
   $('nav-camera').addEventListener('click', () => {
     if (requireSheetConfigured()) $('input-camera').click();
   });
-  $('nav-history').addEventListener('click', () => {
-    $('history-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-  $('pill-ai').addEventListener('click', openSettingsModal);
-  $('pill-sheet').addEventListener('click', openSettingsModal);
-  $('btn-sync-all').addEventListener('click', syncAllPending);
-
-  // Mandatory Google Sheet Setup Form
-  $('require-sheet-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const url = $('req-sheet-url').value.trim();
-    if (!isValidSheetUrl(url)) {
-      showToast('Gunakan link Google Sheet https://docs.google.com/spreadsheets/d/...', 'error');
+  $('nav-account').addEventListener('click', () => {
+    const u = state.auth?.user;
+    if (!u) {
+      openModal('modal-login');
       return;
     }
-    state.settings.sheetUrl = url;
-    state.settings.autoSync = true;
-    saveSettings();
-    closeModal('modal-require-sheet');
+    $('account-username').textContent = u.username;
+    $('account-avatar').textContent = (u.username || 'U').slice(0, 1).toUpperCase();
+    $('account-tier').textContent = isPremiumUser()
+      ? 'Premium • Sync Google Sheet Aktif'
+      : 'Demo • Mode Uji Coba';
+    $('account-sheet-wrap').classList.toggle('hidden', !isPremiumUser());
+    $('btn-save-account-sheet').classList.toggle('hidden', !isPremiumUser());
+    $('account-sheet-url').value = state.settings.sheetUrl || '';
+    $('account-sheet-error').classList.add('hidden');
+    openModal('modal-account');
+  });
+  $('btn-logout').addEventListener('click', logoutUser);
+
+  $('account-sheet-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = $('account-sheet-error');
+    errEl.classList.add('hidden');
+    const url = $('account-sheet-url').value.trim();
+
+    if (!isValidSheetUrl(url)) {
+      errEl.textContent = 'Gunakan link Google Sheet https://docs.google.com/spreadsheets/d/...';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    const res = await importFromGoogleSheet({
+      targetUrl: url,
+      silentIfEmpty: true,
+      validateBeforeSave: true,
+    });
+
+    if (res !== true) {
+      errEl.textContent = typeof res === 'string'
+        ? res
+        : 'Format Google Sheet tidak sesuai.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    closeModal('modal-account');
     renderAll();
+  });
+
+  let authMode = 'login'; // 'login' | 'register'
+  const setAuthMode = (mode) => {
+    authMode = mode;
+    const isReg = mode === 'register';
+    $('auth-modal-header').classList.toggle('is-register', isReg);
+    $('auth-mode-badge').textContent = isReg ? 'REGISTRASI AKUN BARU' : 'LOGIN';
+    $('modal-login-title').textContent = isReg ? 'Daftar Akun CatatStruk' : 'Masuk ke CatatStruk';
+    $('login-subtitle').textContent = isReg
+      ? 'Isi data di bawah untuk membuat akun baru dan mulai sinkron ke Google Sheet.'
+      : 'Masuk dengan akun Anda untuk melihat dan mencatat struk belanja.';
+    $('register-confirm-wrap').classList.toggle('hidden', !isReg);
+    $('register-sheet-wrap').classList.toggle('hidden', !isReg);
+    $('login-confirm-password').required = isReg;
+    $('btn-login-submit').textContent = isReg ? 'Daftar & Masuk' : 'Masuk';
+    $('btn-toggle-auth-mode').textContent = isReg
+      ? 'Sudah punya akun? Kembali ke Masuk'
+      : 'Belum punya akun? Daftar Akun';
+  };
+
+  $('btn-toggle-auth-mode').addEventListener('click', () => {
+    $('login-error').classList.add('hidden');
+    setAuthMode(authMode === 'login' ? 'register' : 'login');
+  });
+
+  $('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = $('login-error');
+    const btn = $('btn-login-submit');
+    errEl.classList.add('hidden');
+
+    if (authMode === 'register') {
+      const pass = $('login-password').value;
+      const confirmPass = $('login-confirm-password').value;
+      if (pass !== confirmPass) {
+        errEl.textContent = 'Konfirmasi password tidak cocok.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+    }
+
+    btn.disabled = true;
 
     try {
-      await postToGoogleSheet({ action: 'ping' });
-      showToast('Google Sheet terhubung! Anda siap foto struk.', 'success');
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: authMode,
+          username: $('login-username').value.trim(),
+          password: $('login-password').value,
+          sheetUrl: authMode === 'register' ? ($('login-sheet-url')?.value || '').trim() : '',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        if (authMode === 'login' && data.notRegistered) {
+          setAuthMode('register');
+        }
+        errEl.textContent = data.error || 'Login gagal.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      saveAuthSession({ user: data.user, token: data.token });
+      const loginSheetUrl = ($('login-sheet-url')?.value || '').trim();
+      if (loginSheetUrl) {
+        if (!isValidSheetUrl(loginSheetUrl)) {
+          errEl.textContent = 'Format link Google Sheet tidak valid. Gunakan https://docs.google.com/spreadsheets/d/...';
+          errEl.classList.remove('hidden');
+          saveAuthSession({ user: null, token: '' });
+          return;
+        }
+        const checkRes = await importFromGoogleSheet({
+          targetUrl: loginSheetUrl,
+          silentIfEmpty: true,
+          validateBeforeSave: true,
+        });
+        if (checkRes !== true) {
+          errEl.textContent = typeof checkRes === 'string'
+            ? checkRes
+            : 'Format Google Sheet tidak sesuai.';
+          errEl.classList.remove('hidden');
+          saveAuthSession({ user: null, token: '' });
+          return;
+        }
+      } else {
+        state.settings.sheetUrl = data.user.sheet_url || '';
+      }
+
+      closeModal('modal-login');
+      renderAll();
+
+      if (isPremiumUser()) {
+        if (!loginSheetUrl && isValidSheetUrl(state.settings.sheetUrl)) {
+          await importFromGoogleSheet({ silentIfEmpty: true });
+        } else if (!loginSheetUrl) {
+          $('req-sheet-error').classList.add('hidden');
+          $('req-sheet-url').value = '';
+          openModal('modal-require-sheet');
+        }
+      } else {
+        showToast(`Login sebagai ${data.user.username} (Mode Demo).`, 'info');
+      }
     } catch (err) {
-      showToast(`Link disimpan. Catatan: ${err.message}`, 'info');
+      errEl.textContent = err.message || 'Gagal terhubung ke server.';
+      errEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
     }
+  });
+
+  $('pill-sheet').addEventListener('click', () => {
+    if (!state.auth?.user) {
+      openModal('modal-login');
+      return;
+    }
+    if (!isPremiumUser()) {
+      showToast('Sync Google Sheet khusus akun Premium (is_premium = Y). Anda di Mode Demo.', 'info');
+      return;
+    }
+    $('req-sheet-error').classList.add('hidden');
+    $('req-sheet-url').value = state.settings.sheetUrl || '';
+    openModal('modal-require-sheet');
+  });
+  $('btn-sync-all').addEventListener('click', () => {
+    if (!state.auth?.user) {
+      openModal('modal-login');
+      return;
+    }
+    if (!isPremiumUser()) {
+      showToast('Sync Google Sheet khusus akun Premium (is_premium = Y).', 'info');
+      return;
+    }
+    syncAllPending();
+  });
+
+  // Mandatory Google Sheet Setup Form (Validasi kosong atau header sesuai format)
+  $('require-sheet-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = $('req-sheet-error');
+    errEl.classList.add('hidden');
+
+    const url = $('req-sheet-url').value.trim();
+    if (!isValidSheetUrl(url)) {
+      errEl.textContent = 'Gunakan link Google Sheet https://docs.google.com/spreadsheets/d/...';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    const res = await importFromGoogleSheet({
+      targetUrl: url,
+      silentIfEmpty: true,
+      validateBeforeSave: true,
+    });
+
+    if (res !== true) {
+      errEl.textContent = typeof res === 'string'
+        ? res
+        : 'Format Google Sheet tidak sesuai. Gunakan Google Sheet kosong atau header sesuai format.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    closeModal('modal-require-sheet');
+    renderAll();
+  });
+
+  // Cek otomatis jika sesi 24 jam habis saat kembali ke tab (khusus akun Premium)
+  const checkSessionOnReturn = () => {
+    if (!state.auth?.user || !isPremiumUser()) return;
+    const activeUrl = loadSheetSession();
+    if (!isValidSheetUrl(activeUrl)) {
+      state.settings.sheetUrl = '';
+      renderStatusPills();
+      if ($('modal-require-sheet').classList.contains('hidden')) {
+        $('req-sheet-error').classList.add('hidden');
+        $('req-sheet-url').value = '';
+        openModal('modal-require-sheet');
+      }
+    }
+  };
+  window.addEventListener('focus', checkSessionOnReturn);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkSessionOnReturn();
   });
 
   // Camera & Gallery
@@ -1142,7 +1753,11 @@ function bindEvents() {
     if (requireSheetConfigured()) openReceiptModal();
   });
   $('btn-demo-scan').addEventListener('click', () => {
-    if (requireSheetConfigured()) runDemoScan();
+    if (!state.auth?.user) {
+      openModal('modal-login');
+      return;
+    }
+    runDemoScan();
   });
 
   $('input-camera').addEventListener('change', (e) => {
@@ -1170,6 +1785,7 @@ function bindEvents() {
 
   // Filters
   $('month-filter').addEventListener('change', (e) => {
+    hasUserSelectedMonth = true;
     state.selectedMonth = e.target.value;
     renderAll();
   });
@@ -1212,47 +1828,64 @@ function bindEvents() {
   });
 
   // Save Receipt Form
+  let isSavingReceipt = false;
   $('receipt-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const existingId = $('form-id').value;
-    const items = collectItemRows();
-    const parsedTotal = parseRupiahInput($('form-total').value);
-    const itemsTotal = items.reduce((s, i) => s + i.price, 0);
-    const tx = {
-      id: existingId || `cs_${Date.now()}`,
-      merchant: $('form-merchant').value.trim(),
-      date: $('form-date').value,
-      category: $('form-category').value,
-      total: Math.max(0, parsedTotal || itemsTotal),
-      paymentMethod: $('form-payment').value,
-      items,
-      notes: $('form-notes').value.trim(),
-      thumb: state.pendingThumb || '',
-      synced: false,
-      createdAt: Date.now(),
-    };
+    if (isSavingReceipt) return;
+    isSavingReceipt = true;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
 
-    if (existingId) {
-      const idx = state.transactions.findIndex((t) => t.id === existingId);
-      if (idx !== -1) {
-        tx.createdAt = state.transactions[idx].createdAt;
-        state.transactions[idx] = tx;
+    try {
+      const existingId = $('form-id').value;
+      const items = collectItemRows();
+      const parsedTotal = parseRupiahInput($('form-total').value);
+      const itemsTotal = items.reduce((s, i) => s + i.price, 0);
+      const tx = {
+        id: existingId || `cs_${Date.now()}`,
+        merchant: $('form-merchant').value.trim(),
+        date: $('form-date').value,
+        category: $('form-category').value,
+        total: Math.max(0, parsedTotal || itemsTotal),
+        paymentMethod: $('form-payment').value,
+        items,
+        notes: $('form-notes').value.trim(),
+        thumb: state.pendingThumb || '',
+        synced: false,
+        createdAt: Date.now(),
+      };
+
+      if (existingId) {
+        const idx = state.transactions.findIndex((t) => t.id === existingId);
+        if (idx !== -1) {
+          tx.createdAt = state.transactions[idx].createdAt;
+          state.transactions[idx] = tx;
+        }
+      } else {
+        state.transactions.unshift(tx);
+        state.selectedMonth = tx.date.slice(0, 7);
       }
-    } else {
-      state.transactions.unshift(tx);
-      state.selectedMonth = tx.date.slice(0, 7);
-    }
 
-    saveTransactions();
-    closeModal('modal-receipt');
-    renderAll();
-
-    if (state.settings.autoSync && state.settings.sheetUrl.trim()) {
-      const ok = await syncSingleTransaction(tx);
+      saveTransactions();
+      closeModal('modal-receipt');
       renderAll();
-      showToast(ok ? 'Tersimpan & tersinkron ke Google Sheet!' : 'Tersimpan lokal (sinkron Sheet tertunda).', ok ? 'success' : 'info');
-    } else {
-      showToast('Struk berhasil dicatat!', 'success');
+
+      if (isPremiumUser() && state.settings.autoSync && state.settings.sheetUrl.trim()) {
+        showLoader({
+          mode: 'sync',
+          title: 'Menyimpan ke Google Sheet...',
+          desc: `Mengirim struk ${tx.merchant} ke Google Sheet Anda.`,
+        });
+        const ok = await syncSingleTransaction(tx);
+        hideLoader();
+        renderAll();
+        showToast(ok ? 'Tersimpan & tersinkron ke Google Sheet!' : 'Tersimpan lokal (sinkron Sheet tertunda).', ok ? 'success' : 'info');
+      } else {
+        showToast(isPremiumUser() ? 'Struk berhasil dicatat!' : 'Struk demo tercatat di aplikasi!', 'success');
+      }
+    } finally {
+      isSavingReceipt = false;
+      if (submitBtn) submitBtn.disabled = false;
     }
   });
 
@@ -1326,10 +1959,46 @@ function registerSW() {
 }
 
 // Init
-loadState();
-bindEvents();
-renderAll();
-registerSW();
-if (!isValidSheetUrl(state.settings.sheetUrl)) {
-  openModal('modal-require-sheet');
+async function initApp() {
+  loadState();
+  state.auth = loadAuthSession();
+  bindEvents();
+  renderAll();
+  registerSW();
+
+  if (!state.auth.token) {
+    openModal('modal-login');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', token: state.auth.token }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      saveAuthSession({ user: null, token: '' });
+      renderAll();
+      openModal('modal-login');
+      return;
+    }
+    state.auth.user = data.user;
+    state.settings.sheetUrl = data.user.sheet_url || '';
+    renderAll();
+  } catch {
+    openModal('modal-login');
+    return;
+  }
+
+  if (isPremiumUser()) {
+    if (isValidSheetUrl(state.settings.sheetUrl)) {
+      importFromGoogleSheet({ silentIfEmpty: true });
+    } else {
+      openModal('modal-require-sheet');
+    }
+  }
 }
+
+initApp();

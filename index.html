@@ -58,28 +58,18 @@
             <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
           </svg>
         </button>
-
-        <button id="btn-settings" class="icon-btn" title="Pengaturan" aria-label="Pengaturan">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path
-              d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </button>
       </div>
     </header>
 
-    <!-- Status Strip -->
+    <!-- Status Strip (Simetris 2 Kolom) -->
     <div class="status-strip" id="status-strip">
-      <div class="status-pill" id="pill-ai">
-        <span class="dot"></span>
-        <span id="pill-ai-text">AI: Mode Demo</span>
-      </div>
-      <div class="status-pill" id="pill-sheet">
+      <button type="button" class="status-pill" id="pill-sheet" title="Klik untuk ganti link Google Sheet">
         <span class="dot"></span>
         <span id="pill-sheet-text">Sheet: Belum Terhubung</span>
-      </div>
+      </button>
+      <a id="btn-open-sheet" href="#" target="_blank" rel="noopener noreferrer" class="status-pill sheet-link-pill hidden">
+        <span>Buka Google Sheet &nearr;</span>
+      </a>
     </div>
 
     <main class="main-content">
@@ -225,45 +215,63 @@
     </footer>
   </div>
 
-  <!-- Sticky Mobile Bottom Bar (Thumb-Friendly for All Ages) -->
+  <!-- Floating Rounded Bottom Nav Bar -->
   <nav class="bottom-nav" aria-label="Menu Utama">
-    <button type="button" id="nav-history" class="bottom-nav-btn">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+    <button type="button" id="nav-sync" class="bottom-nav-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
         <path d="M3 3v5h5" />
-        <path d="M12 7v5l4 2" />
+        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+        <path d="M16 16h5v5" />
       </svg>
-      <span>Riwayat</span>
+      <span>Sync</span>
     </button>
-    <button type="button" id="nav-camera" class="bottom-nav-camera">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+    <button type="button" id="nav-camera" class="bottom-nav-camera" title="Foto Struk" aria-label="Foto Struk">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
         stroke-linecap="round" stroke-linejoin="round">
         <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
         <circle cx="12" cy="13" r="3" />
       </svg>
-      <span>Foto Struk</span>
     </button>
-    <button type="button" id="nav-settings" class="bottom-nav-btn">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+    <button type="button" id="nav-account" class="bottom-nav-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3" />
         <path
           d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
       </svg>
-      <span>Pengaturan</span>
+      <span>Setting</span>
     </button>
   </nav>
 
-  <!-- Scanning Overlay -->
+  <!-- Scanning / Syncing Overlay -->
   <div id="scan-overlay" class="overlay hidden" role="status" aria-live="polite">
     <div class="scan-loader-card">
-      <div class="scanner-box">
+      <div id="scanner-box" class="scanner-box">
         <img id="scan-preview-img" src="" alt="Preview struk" />
-        <div class="scan-laser"></div>
+        <div class="scan-beam"></div>
+        <div class="scan-corners" aria-hidden="true"></div>
       </div>
-      <h3 id="scan-status-title">Membaca Struk dengan AI...</h3>
+      <div id="sync-anim-box" class="sync-anim-box hidden" aria-hidden="true">
+        <div class="sync-ring"></div>
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="18" x="3" y="3" rx="2"/>
+          <path d="M3 9h18M9 21V9"/>
+        </svg>
+      </div>
+      <div class="loader-title-row">
+        <span class="mini-spinner" aria-hidden="true"></span>
+        <h3 id="scan-status-title">Membaca Struk dengan AI...</h3>
+      </div>
       <p id="scan-status-desc">Mengekstrak toko, item belanja, dan total pembayaran.</p>
+      <div id="loader-slow-notice" class="loader-slow-notice hidden">
+        <span class="slow-dot" aria-hidden="true"></span>
+        <span>Koneksi ke server agak lambat. Mohon tunggu sebentar lagi, proses masih berjalan...</span>
+      </div>
+      <div class="loader-progress">
+        <div class="loader-progress-bar"></div>
+      </div>
     </div>
   </div>
 
@@ -380,9 +388,10 @@
           <div class="field">
             <label for="setting-gemini-model">Model Gemini</label>
             <select id="setting-gemini-model">
-              <option value="gemini-2.5-flash">gemini-2.5-flash (Cepat &amp; Akurat)</option>
-              <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-              <option value="gemini-2.5-pro">gemini-2.5-pro (Struk Panjang/Buram)</option>
+              <option value="gemini-flash-lite-latest">gemini-flash-lite-latest (Rekomendasi, Cepat &amp; Hemat)</option>
+              <option value="gemini-flash-latest">gemini-flash-latest</option>
+              <option value="gemini-3.8-flash">gemini-3.8-flash</option>
+              <option value="gemini-pro-latest">gemini-pro-latest (Struk Panjang/Buram)</option>
             </select>
           </div>
           <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="link-btn">Dapatkan API Key
@@ -408,6 +417,7 @@
           <div class="sheet-sync-actions">
             <button type="button" id="btn-export-sheet" class="btn btn-secondary">Export ke Google Sheet</button>
             <button type="button" id="btn-import-sheet" class="btn btn-secondary">Import dari Google Sheet</button>
+            <a id="btn-open-sheet-settings" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary sheet-open-full hidden">Buka Google Sheet Saya &nearr;</a>
           </div>
 
           <label class="checkbox-row">
@@ -489,10 +499,90 @@
           <input type="url" id="req-sheet-url" required placeholder="https://docs.google.com/spreadsheets/d/..." />
         </div>
 
+        <p id="req-sheet-error" class="form-error hidden"></p>
+
         <div class="modal-footer">
           <div class="footer-right">
             <button type="submit" id="btn-save-req-sheet" class="btn btn-primary">Simpan &amp; Mulai Catat Struk</button>
           </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Login / Register Wajib -->
+  <div id="modal-login" class="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="modal-login-title">
+    <div class="modal-backdrop"></div>
+    <div class="modal-sheet">
+      <div class="modal-header auth-header" id="auth-modal-header">
+        <div>
+          <span id="auth-mode-badge" class="auth-badge">LOGIN</span>
+          <h3 id="modal-login-title">Masuk ke CatatStruk</h3>
+        </div>
+      </div>
+      <form id="login-form" class="modal-body">
+        <p id="login-subtitle" class="muted">
+          Masuk dengan akun Anda untuk melihat dan mencatat struk belanja.
+        </p>
+
+        <div class="field">
+          <label for="login-username">Username</label>
+          <input type="text" id="login-username" required autocomplete="username" placeholder="Masukkan username" />
+        </div>
+
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" required autocomplete="current-password" placeholder="Masukkan password" />
+        </div>
+
+        <div class="field hidden" id="register-confirm-wrap">
+          <label for="login-confirm-password">Konfirmasi Password</label>
+          <input type="password" id="login-confirm-password" autocomplete="new-password" placeholder="Ulangi password" />
+        </div>
+
+        <div class="field hidden" id="register-sheet-wrap">
+          <label for="login-sheet-url">Link Google Sheet Publik (Opsional)</label>
+          <input type="url" id="login-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/..." />
+        </div>
+
+        <p id="login-error" class="form-error hidden"></p>
+
+        <div class="modal-footer auth-footer-center">
+          <button type="submit" id="btn-login-submit" class="btn btn-primary btn-full">Masuk</button>
+          <button type="button" id="btn-toggle-auth-mode" class="btn btn-secondary btn-full">Belum punya akun? Daftar Akun</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Setting Akun & Google Sheet -->
+  <div id="modal-account" class="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="modal-account-title">
+    <div class="modal-backdrop" data-close="modal-account"></div>
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 id="modal-account-title">Setting Akun</h3>
+        <button class="icon-btn" data-close="modal-account" aria-label="Tutup">&times;</button>
+      </div>
+      <form id="account-sheet-form" class="modal-body">
+        <div class="account-profile-card">
+          <div class="account-avatar" id="account-avatar">U</div>
+          <div class="account-meta">
+            <div class="account-name" id="account-username">-</div>
+            <span class="account-badge" id="account-tier">-</span>
+          </div>
+        </div>
+
+        <div id="account-sheet-wrap" class="settings-section">
+          <div class="field">
+            <label for="account-sheet-url">Link Google Sheet Publik</label>
+            <input type="url" id="account-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/..." />
+          </div>
+          <p id="account-sheet-error" class="form-error hidden"></p>
+        </div>
+
+        <div class="modal-footer auth-footer-center">
+          <button type="submit" id="btn-save-account-sheet" class="btn btn-primary btn-full">Simpan Link Google Sheet</button>
+          <button type="button" id="btn-logout" class="btn btn-danger-outline btn-full">Logout dari Akun</button>
         </div>
       </form>
     </div>

@@ -37,7 +37,7 @@ Pastikan total dan price adalah bilangan bulat Rupiah >= 0 tanpa titik/koma.
 ''';
 
     final uri = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${Uri.encodeComponent(apiKey.trim())}',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${Uri.encodeComponent(apiKey.trim())}',
     );
 
     final client = HttpClient();

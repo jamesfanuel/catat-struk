@@ -1,0 +1,20 @@
+[
+  {
+    "username": "premium",
+    "password": "123456",
+    "is_premium": "Y",
+    "sheet_url": ""
+  },
+  {
+    "username": "demo",
+    "password": "123456",
+    "is_premium": "N",
+    "sheet_url": ""
+  },
+  {
+    "username": "james",
+    "password": "123456",
+    "is_premium": "Y",
+    "sheet_url": "https://docs.google.com/spreadsheets/d/1URvDtVUxqLeq80NsiTvESrsYm61NvVn6yp1eqB0qkFI/edit?gid=0#gid=0"
+  }
+]
