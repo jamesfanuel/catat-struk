@@ -399,7 +399,7 @@
             gratis via Google Apps Script).</p>
 
           <div class="field">
-            <label for="setting-sheet-url">Link Google Sheet Publik (Wajib) / Apps Script URL</label>
+            <label for="setting-sheet-url">Link Google Sheet Anda (Privat / Restricted)</label>
             <div class="input-with-btn">
               <input type="url" id="setting-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/.../edit" />
               <button type="button" id="btn-test-sheet" class="btn btn-secondary">Test</button>
@@ -474,20 +474,26 @@
       </div>
       <form id="require-sheet-form" class="modal-body">
         <p class="muted">
-          Untuk mulai mencatat struk, Anda <strong>wajib memasukkan link Google Sheet kosong</strong> yang sudah di-set publik (<em>Anyone with the link &rarr; Editor</em>) agar setiap hasil foto struk langsung tersimpan ke Sheet Anda.
+          Untuk mulai mencatat struk, Anda <strong>wajib menghubungkan Google Sheet kosong</strong>. Sheet Anda tetap aman <strong>Privat (Restricted)</strong> &mdash; cukup bagikan akses Editor ke email bot di bawah ini.
         </p>
 
         <div class="setup-guide">
           <ol>
             <li>Buka <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a> untuk membuat Google Sheet baru yang kosong.</li>
             <li>Klik tombol <strong>Bagikan (Share)</strong> di kanan atas.</li>
-            <li>Ubah akses menjadi <strong>Siapa saja yang memiliki link</strong> &rarr; pilih peran <strong>Editor</strong>.</li>
-            <li>Salin link Google Sheet tersebut dan tempel di bawah ini:</li>
+            <li>Biarkan akses tetap <strong>Dibatasi (Restricted)</strong>, lalu tambahkan email bot berikut sebagai <strong>Editor</strong>:</li>
+          </ol>
+          <div id="bot-email-box" class="input-with-btn" style="margin-top: 8px;">
+            <input type="text" id="bot-email-display" readonly value="Memuat email bot..." aria-label="Email Bot Google Sheet" />
+            <button type="button" id="btn-copy-bot-email" class="btn btn-secondary">Salin</button>
+          </div>
+          <ol start="4" style="margin-top: 8px;">
+            <li>Salin link Google Sheet Anda dan tempel di bawah ini:</li>
           </ol>
         </div>
 
         <div class="field">
-          <label for="req-sheet-url">Link Google Sheet Publik (Wajib)</label>
+          <label for="req-sheet-url">Link Google Sheet Anda (Wajib)</label>
           <input type="url" id="req-sheet-url" required placeholder="https://docs.google.com/spreadsheets/d/..." />
         </div>
 

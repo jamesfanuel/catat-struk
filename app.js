@@ -1621,7 +1621,14 @@ function bindEvents() {
     }
     const info = getPremiumInfo(u);
     $('account-username').textContent = u.username;
-    $('account-email').textContent = u.email || 'Email belum diisi';
+    const rawEmail = String(u.email || '').trim();
+    const maskedUiEmail = rawEmail && rawEmail.includes('@') && !rawEmail.includes('****')
+      ? (() => {
+          const [loc, dom] = rawEmail.split('@');
+          return `${loc.length <= 2 ? `${loc[0]}****` : `${loc.slice(0, 2)}****${loc.length > 4 ? loc.slice(-1) : ''}`}@${dom}`;
+        })()
+      : rawEmail;
+    $('account-email').textContent = maskedUiEmail || 'Email belum diisi';
     $('account-avatar').textContent = (u.username || 'U').slice(0, 1).toUpperCase();
 
     const tierEl = $('account-tier');
@@ -1810,6 +1817,21 @@ function bindEvents() {
       errEl.classList.remove('hidden');
     } finally {
       btn.disabled = false;
+    }
+  });
+
+  $('btn-copy-bot-email')?.addEventListener('click', async () => {
+    const email = $('bot-email-display')?.value || '';
+    if (!email || email.includes('Memuat') || email.includes('Belum')) {
+      showToast('Email bot belum tersedia.', 'error');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(email);
+      showToast('Email bot berhasil disalin!', 'success');
+    } catch {
+      $('bot-email-display')?.select();
+      showToast('Salin email bot secara manual dari kotak.', 'info');
     }
   });
 
@@ -2107,6 +2129,27 @@ function registerSW() {
   }
 }
 
+// Ambil email bot Service Account dari /api/sheets agar user bisa Share Restricted Sheet
+async function loadSheetBotEmail() {
+  const input = $('bot-email-display');
+  if (!input) return;
+  try {
+    const res = await fetch('/api/sheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'config' }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.ok && data.botEmail) {
+      input.value = data.botEmail;
+    } else {
+      input.value = 'Belum dikonfigurasi (GOOGLE_CLIENT_EMAIL)';
+    }
+  } catch {
+    input.value = 'Gagal memuat email bot';
+  }
+}
+
 // Init
 async function initApp() {
   loadState();
@@ -2114,6 +2157,7 @@ async function initApp() {
   bindEvents();
   renderAll();
   registerSW();
+  loadSheetBotEmail();
 
   if (!state.auth.token) {
     openModal('modal-login');

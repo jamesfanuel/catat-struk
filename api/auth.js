@@ -4,6 +4,56 @@ import path from 'node:path';
 import { sendTemplateEmail } from './email.js';
 
 const AUTH_SECRET = process.env.AUTH_SECRET || 'catatstruk_dev_secret_change_in_prod';
+const ENC_KEY = crypto
+  .createHash('sha256')
+  .update(process.env.DATA_ENCRYPTION_KEY || AUTH_SECRET)
+  .digest();
+
+function encryptField(plain) {
+  const text = String(plain || '').trim();
+  if (!text) return '';
+  if (text.startsWith('enc$v1$')) return text;
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', ENC_KEY, iv);
+  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `enc$v1$${iv.toString('base64url')}$${tag.toString('base64url')}$${encrypted.toString('base64url')}`;
+}
+
+function decryptField(stored) {
+  const s = String(stored || '').trim();
+  if (!s) return '';
+  if (!s.startsWith('enc$v1$')) return s;
+  try {
+    const parts = s.split('$');
+    if (parts.length !== 5) return '';
+    const [, , ivB64, tagB64, dataB64] = parts;
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      ENC_KEY,
+      Buffer.from(ivB64, 'base64url')
+    );
+    decipher.setAuthTag(Buffer.from(tagB64, 'base64url'));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(dataB64, 'base64url')),
+      decipher.final(),
+    ]);
+    return decrypted.toString('utf8');
+  } catch {
+    return '';
+  }
+}
+
+function maskEmail(email) {
+  const raw = String(email || '').trim();
+  if (!raw || !raw.includes('@')) return raw;
+  const [local, domain] = raw.split('@');
+  if (!local || !domain) return raw;
+  const maskedLocal = local.length <= 2
+    ? `${local[0]}****`
+    : `${local.slice(0, 2)}****${local.length > 4 ? local.slice(-1) : ''}`;
+  return `${maskedLocal}@${domain}`;
+}
 
 function hashPassword(plain) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -174,7 +224,7 @@ async function getUserByUsername(username) {
 
 async function updateUserSheetUrl(username, sheetUrl) {
   const cleanUser = String(username || '').trim();
-  const cleanUrl = String(sheetUrl || '').trim();
+  const cleanUrl = encryptField(sheetUrl);
 
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const url = `${getSupabaseRestBase()}/rest/v1/users?username=eq.${encodeURIComponent(cleanUser)}`;
@@ -227,7 +277,7 @@ async function createUserInDb({ username, email = '', password, sheetUrl = '' })
   const cleanUser = String(username || '').trim();
   const cleanEmail = String(email || '').trim();
   const hashedPass = hashPassword(password);
-  const cleanUrl = String(sheetUrl || '').trim();
+  const cleanUrl = encryptField(sheetUrl);
   const createdAt = getWibTimestamp();
   const defaultPremiumUntil = '9999-01-01';
 
@@ -299,8 +349,8 @@ function sanitizeUser(row) {
   const meta = computePremiumMeta(row.is_premium_until);
   return {
     username: row.username,
-    email: String(row.email || ''),
-    sheet_url: String(row.sheet_url || ''),
+    email: maskEmail(row.email || ''),
+    sheet_url: decryptField(row.sheet_url || ''),
     ...meta,
   };
 }
@@ -346,9 +396,10 @@ export default async function handler(req, res) {
         exp: Date.now() + 24 * 60 * 60 * 1000,
       });
 
-      if (user.email) {
+      const realEmail = String(created?.email || email || '').trim();
+      if (realEmail) {
         sendTemplateEmail({
-          to: user.email,
+          to: realEmail,
           template: 'welcome',
           data: {
             username: user.username,
@@ -379,9 +430,10 @@ export default async function handler(req, res) {
     });
 
     // Kirim email pengingat otomatis jika masa Premium <= 7 hari lagi
-    if (user.email && user.is_expiring_soon) {
+    const realEmail = String(row.email || '').trim();
+    if (realEmail && user.is_expiring_soon) {
       sendTemplateEmail({
-        to: user.email,
+        to: realEmail,
         template: 'expiry_reminder',
         data: {
           username: user.username,
