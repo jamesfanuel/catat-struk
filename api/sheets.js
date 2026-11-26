@@ -1,5 +1,17 @@
 import crypto from 'node:crypto';
 
+const AUTH_SECRET = process.env.AUTH_SECRET || 'catatstruk_dev_secret_change_in_prod';
+
+function verifyToken(token) {
+  if (!token || !token.includes('.')) return null;
+  const [data, sig] = token.split('.');
+  const expected = crypto.createHmac('sha256', AUTH_SECRET).update(data).digest('base64url');
+  if (sig !== expected) return null;
+  const parsed = JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
+  if (!parsed || !parsed.exp || Date.now() > parsed.exp) return null;
+  return parsed;
+}
+
 const SHEET_URL_RE = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)(?:\/.*)?$/;
 const HEADERS = [
   'ID',
@@ -621,7 +633,12 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
-    const { action, sheetUrl, rows } = body;
+    const { action, sheetUrl, rows, token } = body;
+
+    const authPayload = verifyToken(token);
+    if (!authPayload) {
+      return res.status(401).json({ ok: false, error: 'Silakan login terlebih dahulu.' });
+    }
 
     const clientEmail = String(process.env.GOOGLE_CLIENT_EMAIL || '').trim();
     const privateKey = String(process.env.GOOGLE_PRIVATE_KEY || '').trim();

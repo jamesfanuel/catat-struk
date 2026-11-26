@@ -906,7 +906,7 @@ function requireSheetConfigured() {
   renderStatusPills();
   $('req-sheet-url').value = '';
   openModal('modal-require-sheet');
-  showToast('Sesi Google Sheet habis atau belum diisi. Masukkan link Google Sheet publik (berlaku 24 jam).', 'info');
+  showToast('Sesi Google Sheet habis atau belum diisi. Masukkan link Google Sheet Anda (berlaku 24 jam).', 'info');
   return false;
 }
 
@@ -921,7 +921,7 @@ async function postToGoogleSheet(payload) {
     const res = await fetch('/api/sheets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, sheetUrl: url }),
+      body: JSON.stringify({ ...payload, sheetUrl: url, token: state.auth?.token || '' }),
     });
     const data = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }));
     if (!res.ok || data.ok === false) {
@@ -1122,7 +1122,7 @@ async function deleteTransactionFromDb(txId) {
 async function importFromGoogleSheet({ targetUrl = '', silentIfEmpty = false, validateBeforeSave = false } = {}) {
   const url = (targetUrl || $('setting-sheet-url')?.value || state.settings.sheetUrl || '').trim();
   if (!isValidSheetUrl(url)) {
-    showToast('Masukkan link Google Sheet publik yang valid terlebih dahulu.', 'error');
+    showToast('Masukkan link Google Sheet yang valid terlebih dahulu.', 'error');
     return false;
   }
   if (!validateBeforeSave) {
@@ -1143,7 +1143,7 @@ async function importFromGoogleSheet({ targetUrl = '', silentIfEmpty = false, va
       const res = await fetch('/api/sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'import', sheetUrl: url }),
+        body: JSON.stringify({ action: 'import', sheetUrl: url, token: state.auth?.token || '' }),
       });
       data = await res.json();
       if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
@@ -1755,6 +1755,7 @@ function bindEvents() {
       }
 
       saveAuthSession({ user: data.user, token: data.token });
+      loadSheetBotEmail();
       const loginSheetUrl = ($('login-sheet-url')?.value || '').trim();
       if (loginSheetUrl) {
         if (!isValidSheetUrl(loginSheetUrl)) {
@@ -2132,12 +2133,12 @@ function registerSW() {
 // Ambil email bot Service Account dari /api/sheets agar user bisa Share Restricted Sheet
 async function loadSheetBotEmail() {
   const input = $('bot-email-display');
-  if (!input) return;
+  if (!input || !state.auth?.token) return;
   try {
     const res = await fetch('/api/sheets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'config' }),
+      body: JSON.stringify({ action: 'config', token: state.auth.token }),
     });
     const data = await res.json().catch(() => ({}));
     if (data.ok && data.botEmail) {
@@ -2157,7 +2158,6 @@ async function initApp() {
   bindEvents();
   renderAll();
   registerSW();
-  loadSheetBotEmail();
 
   if (!state.auth.token) {
     openModal('modal-login');
@@ -2180,6 +2180,7 @@ async function initApp() {
     state.auth.user = data.user;
     state.settings.sheetUrl = data.user.sheet_url || '';
     renderAll();
+    loadSheetBotEmail();
   } catch {
     openModal('modal-login');
     return;
