@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { sendTemplateEmail } from './email.js';
 
 const AUTH_SECRET = process.env.AUTH_SECRET || 'catatstruk_dev_secret_change_in_prod';
 
@@ -24,7 +25,7 @@ function verifyPassword(plain, stored) {
   return s === String(plain);
 }
 
-function getWibTimestamp() {
+function getWibParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Jakarta',
     year: 'numeric',
@@ -34,10 +35,81 @@ function getWibTimestamp() {
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-  }).formatToParts(new Date());
+  }).formatToParts(date);
   const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
   const hour = map.hour === '24' ? '00' : map.hour;
-  return `${map.year}-${map.month}-${map.day} ${hour}:${map.minute}:${map.second}`;
+  return {
+    date: `${map.year}-${map.month}-${map.day}`,
+    timestamp: `${map.year}-${map.month}-${map.day} ${hour}:${map.minute}:${map.second}`,
+  };
+}
+
+function getWibTimestamp() {
+  return getWibParts().timestamp;
+}
+
+function computePremiumMeta(untilRaw) {
+  const until = untilRaw ? String(untilRaw).slice(0, 10) : '';
+  if (!until || !/^\d{4}-\d{2}-\d{2}$/.test(until)) {
+    return {
+      is_premium_until: null,
+      is_premium: false,
+      is_lifetime: false,
+      is_expired: false,
+      is_expiring_soon: false,
+      days_remaining: 0,
+    };
+  }
+  if (until === '9999-01-01') {
+    return {
+      is_premium_until: '9999-01-01',
+      is_premium: true,
+      is_lifetime: true,
+      is_expired: false,
+      is_expiring_soon: false,
+      days_remaining: null,
+    };
+  }
+
+  const todayWib = getWibParts().date;
+  const todayMs = Date.parse(`${todayWib}T00:00:00Z`);
+  const untilMs = Date.parse(`${until}T00:00:00Z`);
+  const diffDays = Math.floor((untilMs - todayMs) / (24 * 60 * 60 * 1000));
+
+  if (diffDays < 0) {
+    return {
+      is_premium_until: until,
+      is_premium: false,
+      is_lifetime: false,
+      is_expired: true,
+      is_expiring_soon: false,
+      days_remaining: 0,
+    };
+  }
+
+  return {
+    is_premium_until: until,
+    is_premium: true,
+    is_lifetime: false,
+    is_expired: false,
+    is_expiring_soon: diffDays <= 7,
+    days_remaining: diffDays,
+  };
+}
+
+function getSupabaseRestBase() {
+  return String(process.env.SUPABASE_URL || '')
+    .trim()
+    .replace(/\/rest\/v1\/?$/i, '')
+    .replace(/\/+$/, '');
+}
+
+function buildSupabaseHeaders(key, extra = {}) {
+  const headers = { apikey: key, ...extra };
+  if (String(key).startsWith('eyJ')) {
+    headers.Authorization = `Bearer ${key}`;
+  }
+  return headers;
 }
 
 function signToken(payload) {
@@ -56,27 +128,11 @@ function verifyToken(token) {
   return parsed;
 }
 
-function getSupabaseRestBase() {
-  return String(process.env.SUPABASE_URL || '')
-    .trim()
-    .replace(/\/rest\/v1\/?$/i, '')
-    .replace(/\/+$/, '');
-}
-
-function buildSupabaseHeaders(key, extra = {}) {
-  const headers = { apikey: key, ...extra };
-  // Legacy service_role adalah JWT (eyJ...), sedangkan Secret key baru (sb_secret_...) cukup memakai header apikey
-  if (String(key).startsWith('eyJ')) {
-    headers.Authorization = `Bearer ${key}`;
-  }
-  return headers;
-}
-
 async function getUserByUsername(username) {
   const cleanUser = String(username || '').trim();
 
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const url = `${getSupabaseRestBase()}/rest/v1/users?username=eq.${encodeURIComponent(cleanUser)}&select=username,password,is_premium,sheet_url&limit=1`;
+    const url = `${getSupabaseRestBase()}/rest/v1/users?username=eq.${encodeURIComponent(cleanUser)}&select=username,email,password,is_premium_until,sheet_url&limit=1`;
     const res = await fetch(url, {
       headers: buildSupabaseHeaders(process.env.SUPABASE_SERVICE_ROLE_KEY),
     });
@@ -98,11 +154,11 @@ async function getUserByUsername(username) {
         'Neon-Connection-String': process.env.NEON_DATABASE_URL,
       },
       body: JSON.stringify({
-        query: 'SELECT username, password, is_premium, sheet_url FROM users WHERE username = $1 LIMIT 1',
+        query: 'SELECT username, email, password, is_premium_until, sheet_url FROM users WHERE username = $1 LIMIT 1',
         params: [cleanUser],
       }),
     });
-    if (!res.ok) throw new Error('Gagal query database Neon');
+    if (!res.ok) throw new Error('DB_ERROR');
     const data = await res.json();
     return data?.rows?.[0] || null;
   }
@@ -113,7 +169,7 @@ async function getUserByUsername(username) {
     return users.find((u) => u.username === cleanUser) || null;
   }
 
-  throw new Error('Database belum dikonfigurasi.');
+  throw new Error('DB_NOT_CONFIGURED');
 }
 
 async function updateUserSheetUrl(username, sheetUrl) {
@@ -150,7 +206,7 @@ async function updateUserSheetUrl(username, sheetUrl) {
         params: [cleanUrl, cleanUser],
       }),
     });
-    if (!res.ok) throw new Error('Gagal menyimpan link Sheet ke Neon');
+    if (!res.ok) throw new Error('DB_ERROR');
     return;
   }
 
@@ -164,14 +220,16 @@ async function updateUserSheetUrl(username, sheetUrl) {
     return;
   }
 
-  throw new Error('Database belum dikonfigurasi.');
+  throw new Error('DB_NOT_CONFIGURED');
 }
 
-async function createUserInDb({ username, password, sheetUrl = '' }) {
+async function createUserInDb({ username, email = '', password, sheetUrl = '' }) {
   const cleanUser = String(username || '').trim();
+  const cleanEmail = String(email || '').trim();
   const hashedPass = hashPassword(password);
   const cleanUrl = String(sheetUrl || '').trim();
   const createdAt = getWibTimestamp();
+  const defaultPremiumUntil = '9999-01-01';
 
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const url = `${getSupabaseRestBase()}/rest/v1/users`;
@@ -183,8 +241,9 @@ async function createUserInDb({ username, password, sheetUrl = '' }) {
       }),
       body: JSON.stringify({
         username: cleanUser,
+        email: cleanEmail,
         password: hashedPass,
-        is_premium: 'Y',
+        is_premium_until: defaultPremiumUntil,
         sheet_url: cleanUrl,
         created_at: createdAt,
       }),
@@ -207,11 +266,11 @@ async function createUserInDb({ username, password, sheetUrl = '' }) {
         'Neon-Connection-String': process.env.NEON_DATABASE_URL,
       },
       body: JSON.stringify({
-        query: 'INSERT INTO users (username, password, is_premium, sheet_url, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING username, password, is_premium, sheet_url',
-        params: [cleanUser, hashedPass, 'Y', cleanUrl, createdAt],
+        query: 'INSERT INTO users (username, email, password, is_premium_until, sheet_url, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING username, email, password, is_premium_until, sheet_url',
+        params: [cleanUser, cleanEmail, hashedPass, defaultPremiumUntil, cleanUrl, createdAt],
       }),
     });
-    if (!res.ok) throw new Error('Gagal mendaftar di Neon');
+    if (!res.ok) throw new Error('DB_ERROR');
     const data = await res.json();
     return data?.rows?.[0];
   }
@@ -225,8 +284,9 @@ async function createUserInDb({ username, password, sheetUrl = '' }) {
   }
   const newUser = {
     username: cleanUser,
+    email: cleanEmail,
     password: hashedPass,
-    is_premium: 'Y',
+    is_premium_until: defaultPremiumUntil,
     sheet_url: cleanUrl,
     created_at: createdAt,
   };
@@ -236,10 +296,12 @@ async function createUserInDb({ username, password, sheetUrl = '' }) {
 }
 
 function sanitizeUser(row) {
+  const meta = computePremiumMeta(row.is_premium_until);
   return {
     username: row.username,
-    is_premium: row.is_premium === 'N' ? 'N' : 'Y',
+    email: String(row.email || ''),
     sheet_url: String(row.sheet_url || ''),
+    ...meta,
   };
 }
 
@@ -250,7 +312,7 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
-    const { action = 'login', username, password, token, sheetUrl } = body;
+    const { action = 'login', username, email = '', password, token, sheetUrl } = body;
 
     if (action === 'verify') {
       const payload = verifyToken(token);
@@ -277,13 +339,24 @@ export default async function handler(req, res) {
       if (existing) {
         return res.status(409).json({ ok: false, error: 'Username sudah terdaftar. Silakan login.' });
       }
-      const created = await createUserInDb({ username, password, sheetUrl });
+      const created = await createUserInDb({ username, email, password, sheetUrl });
       const user = sanitizeUser(created);
       const newToken = signToken({
         username: user.username,
-        is_premium: user.is_premium,
         exp: Date.now() + 24 * 60 * 60 * 1000,
       });
+
+      if (user.email) {
+        sendTemplateEmail({
+          to: user.email,
+          template: 'welcome',
+          data: {
+            username: user.username,
+            untilLabel: user.is_lifetime ? 'Premium Selamanya' : (user.is_premium_until || 'Reguler'),
+          },
+        }).catch((e) => console.error('[auth] Welcome email error:', e));
+      }
+
       return res.status(200).json({ ok: true, token: newToken, user });
     }
 
@@ -302,9 +375,21 @@ export default async function handler(req, res) {
     const user = sanitizeUser(row);
     const newToken = signToken({
       username: user.username,
-      is_premium: user.is_premium,
       exp: Date.now() + 24 * 60 * 60 * 1000,
     });
+
+    // Kirim email pengingat otomatis jika masa Premium <= 7 hari lagi
+    if (user.email && user.is_expiring_soon) {
+      sendTemplateEmail({
+        to: user.email,
+        template: 'expiry_reminder',
+        data: {
+          username: user.username,
+          untilLabel: user.is_premium_until,
+          daysRemaining: user.days_remaining,
+        },
+      }).catch((e) => console.error('[auth] Expiry email error:', e));
+    }
 
     return res.status(200).json({ ok: true, token: newToken, user });
   } catch (err) {

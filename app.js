@@ -898,7 +898,7 @@ function requireSheetConfigured() {
     return false;
   }
   if (!isPremiumUser()) {
-    showToast('Fitur Foto Struk & Sync Google Sheet khusus akun Premium (is_premium = Y). Silakan coba Demo Scan Struk Contoh!', 'info');
+    showToast('Fitur Foto Struk & Sync Google Sheet khusus akun Premium. Akun Anda saat ini User Reguler (Mode Demo).', 'info');
     return false;
   }
   state.settings.sheetUrl = loadSheetSession();
@@ -1080,6 +1080,45 @@ function parseItemsTextToArray(itemsText) {
     });
 }
 
+async function loadTransactionsFromDb() {
+  if (!state.auth?.token) return [];
+  const res = await fetch('/api/transactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'list', token: state.auth.token }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) return [];
+  return Array.isArray(data.transactions) ? data.transactions : [];
+}
+
+async function syncTransactionsToDb(txList) {
+  if (!state.auth?.token || !Array.isArray(txList) || txList.length === 0) {
+    return { inserted: 0, transactions: state.transactions };
+  }
+  const res = await fetch('/api/transactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'sync_from_sheet',
+      token: state.auth.token,
+      transactions: txList.map((t) => ({ ...t, thumb: '' })),
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) return { inserted: 0, transactions: state.transactions };
+  return data;
+}
+
+async function deleteTransactionFromDb(txId) {
+  if (!state.auth?.token || !txId) return;
+  await fetch('/api/transactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete', token: state.auth.token, txId }),
+  }).catch(() => {});
+}
+
 async function importFromGoogleSheet({ targetUrl = '', silentIfEmpty = false, validateBeforeSave = false } = {}) {
   const url = (targetUrl || $('setting-sheet-url')?.value || state.settings.sheetUrl || '').trim();
   if (!isValidSheetUrl(url)) {
@@ -1157,7 +1196,7 @@ async function importFromGoogleSheet({ targetUrl = '', silentIfEmpty = false, va
       }
     });
 
-    // Mirroring 1:1 dengan isi Google Sheet (tetap pertahankan transaksi lokal yang belum tersinkron)
+    // Mirroring 1:1 dengan isi Google Sheet + simpan ID yang belum ada ke tabel transactions DB
     const existingThumbs = new Map(state.transactions.map((t) => [t.id, t.thumb || '']));
     const unsyncedLocal = state.transactions.filter((t) => !t.synced && !grouped.has(t.id));
     const mirroredFromSheet = Array.from(grouped.values()).map((tx) => ({
@@ -1165,13 +1204,24 @@ async function importFromGoogleSheet({ targetUrl = '', silentIfEmpty = false, va
       thumb: existingThumbs.get(tx.id) || '',
     }));
 
+    let dbInserted = 0;
+    if (mirroredFromSheet.length > 0 && state.auth?.token) {
+      const dbRes = await syncTransactionsToDb(mirroredFromSheet);
+      dbInserted = dbRes.inserted || 0;
+    }
+
     state.transactions = [...unsyncedLocal, ...mirroredFromSheet];
     const added = mirroredFromSheet.length;
 
     saveTransactions();
     renderAll();
     if (added > 0) {
-      showToast(`Sinkron mirror berhasil: ${added} struk dari Google Sheet!`, 'success');
+      showToast(
+        dbInserted > 0
+          ? `Sync berhasil: ${added} struk (${dbInserted} baru disimpan ke database)!`
+          : `Sync berhasil: ${added} struk (data sudah sinkron dengan database).`,
+        'success'
+      );
     } else if (silentIfEmpty) {
       showToast('Google Sheet terhubung! Siap foto struk.', 'success');
     } else {
@@ -1189,8 +1239,34 @@ async function importFromGoogleSheet({ targetUrl = '', silentIfEmpty = false, va
   }
 }
 
+function getPremiumInfo(user = state.auth?.user) {
+  if (!user) {
+    return { isPremium: false, isLifetime: false, isExpired: false, isExpiringSoon: false, daysRemaining: 0, until: null };
+  }
+  const until = user.is_premium_until ? String(user.is_premium_until).slice(0, 10) : null;
+  if (!until) {
+    return { isPremium: false, isLifetime: false, isExpired: false, isExpiringSoon: false, daysRemaining: 0, until: null };
+  }
+  if (until === '9999-01-01') {
+    return { isPremium: true, isLifetime: true, isExpired: false, isExpiringSoon: false, daysRemaining: null, until };
+  }
+  const today = getTodayDate();
+  const diffDays = Math.floor((Date.parse(`${until}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+  if (diffDays < 0) {
+    return { isPremium: false, isLifetime: false, isExpired: true, isExpiringSoon: false, daysRemaining: 0, until };
+  }
+  return {
+    isPremium: true,
+    isLifetime: false,
+    isExpired: false,
+    isExpiringSoon: diffDays <= 7,
+    daysRemaining: diffDays,
+    until,
+  };
+}
+
 function isPremiumUser() {
-  return state.auth?.user?.is_premium === 'Y';
+  return getPremiumInfo().isPremium;
 }
 
 function loadAuthSession() {
@@ -1237,13 +1313,15 @@ function renderStatusPills() {
     $('pill-sheet-text').textContent = 'Belum Login';
   } else if (!premium) {
     $('pill-sheet').classList.remove('connected');
-    $('pill-sheet-text').textContent = `${user.username} (Demo)`;
+    $('pill-sheet-text').textContent = `${user.username} (Reguler)`;
   } else {
     $('pill-sheet').classList.toggle('connected', hasSheet);
     $('pill-sheet-text').textContent = hasSheet
       ? 'Google Sheet: Aktif'
       : 'Google Sheet: Belum Terhubung';
   }
+
+  renderPremiumBanner();
 
   const canOpenDirect = hasSheet && isGoogleSpreadsheetUrl(state.settings.sheetUrl);
   const openBtn = $('btn-open-sheet');
@@ -1255,6 +1333,32 @@ function renderStatusPills() {
   if (openSettingsBtn) {
     openSettingsBtn.classList.toggle('hidden', !canOpenDirect);
     if (canOpenDirect) openSettingsBtn.href = state.settings.sheetUrl.trim();
+  }
+}
+
+function renderPremiumBanner() {
+  const banner = $('premium-warning-banner');
+  const textEl = $('premium-warning-text');
+  if (!banner || !textEl) return;
+
+  const user = state.auth?.user;
+  if (!user) {
+    banner.classList.add('hidden');
+    return;
+  }
+
+  const info = getPremiumInfo(user);
+  banner.classList.remove('expired');
+  if (info.isExpiringSoon) {
+    const dayText = info.daysRemaining === 0 ? 'hari ini' : `${info.daysRemaining} hari lagi`;
+    textEl.textContent = `⚠️ Masa Premium Anda berakhir ${dayText} (${formatDateID(info.until)}). Segera perpanjang agar sinkronisasi Google Sheet tetap aktif.`;
+    banner.classList.remove('hidden');
+  } else if (info.isExpired) {
+    textEl.textContent = `Masa Premium Anda telah berakhir pada ${formatDateID(info.until)}. Akun kini berstatus Reguler (Mode Demo).`;
+    banner.classList.add('expired');
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
   }
 }
 
@@ -1320,8 +1424,10 @@ function renderSummary(monthTxs) {
 
   const pendingTotal = state.transactions.filter((t) => !t.synced).length;
   const badge = $('pending-badge');
-  badge.textContent = String(pendingTotal);
-  badge.classList.toggle('hidden', pendingTotal === 0);
+  if (badge) {
+    badge.textContent = String(pendingTotal);
+    badge.classList.toggle('hidden', pendingTotal === 0);
+  }
 }
 
 function renderDonutChart(monthTxs) {
@@ -1513,11 +1619,30 @@ function bindEvents() {
       openModal('modal-login');
       return;
     }
+    const info = getPremiumInfo(u);
     $('account-username').textContent = u.username;
+    $('account-email').textContent = u.email || 'Email belum diisi';
     $('account-avatar').textContent = (u.username || 'U').slice(0, 1).toUpperCase();
-    $('account-tier').textContent = isPremiumUser()
-      ? 'Premium • Sync Google Sheet Aktif'
-      : 'Demo • Mode Uji Coba';
+
+    const tierEl = $('account-tier');
+    const expiryEl = $('account-expiry-note');
+    tierEl.classList.remove('warn', 'regular');
+    if (info.isLifetime) {
+      tierEl.textContent = 'Premium Selamanya';
+      expiryEl.textContent = 'Aktif selamanya • Sync Google Sheet aktif';
+    } else if (info.isPremium) {
+      tierEl.textContent = info.isExpiringSoon
+        ? `Premium • Sisa ${info.daysRemaining} hari`
+        : 'Premium • Aktif';
+      if (info.isExpiringSoon) tierEl.classList.add('warn');
+      expiryEl.textContent = `Berakhir pada ${formatDateID(info.until)}`;
+    } else {
+      tierEl.textContent = 'User Reguler (Mode Demo)';
+      tierEl.classList.add('regular');
+      expiryEl.textContent = info.isExpired
+        ? `Premium telah berakhir pada ${formatDateID(info.until)}`
+        : 'Belum berlangganan Premium';
+    }
     $('account-sheet-wrap').classList.toggle('hidden', !isPremiumUser());
     $('btn-save-account-sheet').classList.toggle('hidden', !isPremiumUser());
     $('account-sheet-url').value = state.settings.sheetUrl || '';
@@ -1566,8 +1691,10 @@ function bindEvents() {
     $('login-subtitle').textContent = isReg
       ? 'Isi data di bawah untuk membuat akun baru dan mulai sinkron ke Google Sheet.'
       : 'Masuk dengan akun Anda untuk melihat dan mencatat struk belanja.';
+    $('register-email-wrap').classList.toggle('hidden', !isReg);
     $('register-confirm-wrap').classList.toggle('hidden', !isReg);
     $('register-sheet-wrap').classList.toggle('hidden', !isReg);
+    $('login-email').required = isReg;
     $('login-confirm-password').required = isReg;
     $('btn-login-submit').textContent = isReg ? 'Daftar & Masuk' : 'Masuk';
     $('btn-toggle-auth-mode').textContent = isReg
@@ -1605,6 +1732,7 @@ function bindEvents() {
         body: JSON.stringify({
           action: authMode,
           username: $('login-username').value.trim(),
+          email: authMode === 'register' ? ($('login-email')?.value || '').trim() : '',
           password: $('login-password').value,
           sheetUrl: authMode === 'register' ? ($('login-sheet-url')?.value || '').trim() : '',
         }),
@@ -1650,14 +1778,32 @@ function bindEvents() {
 
       if (isPremiumUser()) {
         if (!loginSheetUrl && isValidSheetUrl(state.settings.sheetUrl)) {
-          await importFromGoogleSheet({ silentIfEmpty: true });
+          const dbList = await loadTransactionsFromDb();
+          if (dbList.length > 0) {
+            state.transactions = dbList;
+            renderAll();
+          } else {
+            await importFromGoogleSheet({ silentIfEmpty: true });
+          }
         } else if (!loginSheetUrl) {
           $('req-sheet-error').classList.add('hidden');
           $('req-sheet-url').value = '';
           openModal('modal-require-sheet');
         }
       } else {
-        showToast(`Login sebagai ${data.user.username} (Mode Demo).`, 'info');
+        const info = getPremiumInfo(data.user);
+        showToast(
+          info.isExpired
+            ? `Masa Premium berakhir pada ${formatDateID(info.until)}. Anda sekarang User Reguler (Mode Demo).`
+            : `Login sebagai ${data.user.username} (User Reguler - Mode Demo).`,
+          'info'
+        );
+      }
+      if (isPremiumUser()) {
+        const info = getPremiumInfo(data.user);
+        if (info.isExpiringSoon) {
+          showToast(`Masa Premium Anda tersisa ${info.daysRemaining} hari lagi!`, 'info');
+        }
       }
     } catch (err) {
       errEl.textContent = err.message || 'Gagal terhubung ke server.';
@@ -1680,7 +1826,7 @@ function bindEvents() {
     $('req-sheet-url').value = state.settings.sheetUrl || '';
     openModal('modal-require-sheet');
   });
-  $('btn-sync-all').addEventListener('click', () => {
+  $('btn-sync-all')?.addEventListener('click', () => {
     if (!state.auth?.user) {
       openModal('modal-login');
       return;
@@ -1877,10 +2023,12 @@ function bindEvents() {
           desc: `Mengirim struk ${tx.merchant} ke Google Sheet Anda.`,
         });
         const ok = await syncSingleTransaction(tx);
+        await syncTransactionsToDb([tx]);
         hideLoader();
         renderAll();
-        showToast(ok ? 'Tersimpan & tersinkron ke Google Sheet!' : 'Tersimpan lokal (sinkron Sheet tertunda).', ok ? 'success' : 'info');
+        showToast(ok ? 'Tersimpan di Google Sheet & Database!' : 'Tersimpan di database (sinkron Sheet tertunda).', ok ? 'success' : 'info');
       } else {
+        await syncTransactionsToDb([tx]);
         showToast(isPremiumUser() ? 'Struk berhasil dicatat!' : 'Struk demo tercatat di aplikasi!', 'success');
       }
     } finally {
@@ -1890,12 +2038,13 @@ function bindEvents() {
   });
 
   // Delete Transaction
-  $('btn-delete-tx').addEventListener('click', () => {
+  $('btn-delete-tx').addEventListener('click', async () => {
     const id = $('form-id').value;
     state.transactions = state.transactions.filter((t) => t.id !== id);
     saveTransactions();
     closeModal('modal-receipt');
     renderAll();
+    await deleteTransactionFromDb(id);
     showToast('Catatan struk dihapus.', 'info');
   });
 
@@ -1994,7 +2143,13 @@ async function initApp() {
 
   if (isPremiumUser()) {
     if (isValidSheetUrl(state.settings.sheetUrl)) {
-      importFromGoogleSheet({ silentIfEmpty: true });
+      const dbList = await loadTransactionsFromDb();
+      if (dbList.length > 0) {
+        state.transactions = dbList;
+        renderAll();
+      } else {
+        importFromGoogleSheet({ silentIfEmpty: true });
+      }
     } else {
       openModal('modal-require-sheet');
     }

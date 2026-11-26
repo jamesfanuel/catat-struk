@@ -1,20 +1,16 @@
 [
   {
     "username": "premium",
+    "email": "premium@example.com",
     "password": "123456",
-    "is_premium": "Y",
+    "is_premium_until": "9999-01-01",
     "sheet_url": ""
   },
   {
     "username": "demo",
+    "email": "demo@example.com",
     "password": "123456",
-    "is_premium": "N",
+    "is_premium_until": null,
     "sheet_url": ""
-  },
-  {
-    "username": "james",
-    "password": "123456",
-    "is_premium": "Y",
-    "sheet_url": "https://docs.google.com/spreadsheets/d/1URvDtVUxqLeq80NsiTvESrsYm61NvVn6yp1eqB0qkFI/edit?gid=0#gid=0"
   }
 ]

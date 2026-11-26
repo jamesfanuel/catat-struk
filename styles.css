@@ -1102,6 +1102,11 @@ body.scroll-locked {
   color: var(--text);
 }
 
+.account-email {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
 .account-badge {
   font-size: 0.74rem;
   font-weight: 700;
@@ -1109,6 +1114,47 @@ body.scroll-locked {
   border-radius: 999px;
   background: var(--primary-soft);
   color: var(--primary);
+}
+
+.account-badge.warn {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
+.account-badge.regular {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.account-expiry {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.premium-banner {
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #92400e;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.premium-banner.expired {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: #b91c1c;
+}
+
+[data-theme="dark"] .premium-banner {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .premium-banner.expired {
+  color: #f87171;
 }
 
 @media (min-width: 560px) {

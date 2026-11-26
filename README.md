@@ -102,7 +102,7 @@ TRUNCATE TABLE public.users RESTART IDENTITY;
 ### Setup Pertama Kali (Sekali Saja)
 1. Buat repository baru di GitHub, lalu push kode ini:
    ```powershell
-   cd "d:\Menuju Milyader"
+   cd "d:\Menuju Milyader\catat-struk"
    git add .
    git commit -m "Initial CatatStruk Beta"
    git branch -M main
@@ -125,7 +125,7 @@ TRUNCATE TABLE public.users RESTART IDENTITY;
 ### Update Otomatis Selanjutnya (Cukup `git push`)
 Setelah terhubung ke GitHub, setiap kali ada perubahan kode di lokal Anda cukup jalankan:
 ```powershell
-cd "d:\Menuju Milyader"
+cd "d:\Menuju Milyader\catat-struk"
 git add .
 git commit -m "Deskripsi perubahan"
 git push

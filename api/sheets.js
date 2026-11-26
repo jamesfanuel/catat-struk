@@ -26,6 +26,14 @@ function base64Url(input) {
     .replace(/\//g, '_');
 }
 
+function normalizePrivateKey(raw) {
+  let key = String(raw || '').trim();
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1);
+  }
+  return key.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\r\n/g, '\n').trim();
+}
+
 async function getGoogleAccessToken(clientEmail, privateKey) {
   const now = Math.floor(Date.now() / 1000);
   const header = base64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
@@ -41,7 +49,7 @@ async function getGoogleAccessToken(clientEmail, privateKey) {
   const signingInput = `${header}.${claim}`;
   const signer = crypto.createSign('RSA-SHA256');
   signer.update(signingInput);
-  const signature = base64Url(signer.sign(privateKey.replace(/\\n/g, '\n')));
+  const signature = base64Url(signer.sign(normalizePrivateKey(privateKey)));
 
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
