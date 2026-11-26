@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CatatStruk — Video Marketing Studio (9:16 Reels / TikTok)</title>
+  <style>
+    :root {
+      --bg: #0b1116;
+      --surface: #131c24;
+      --border: #24323f;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #14b8a6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px;
+      gap: 16px;
+    }
+
+    .header {
+      text-align: center;
+      max-width: 580px;
+    }
+
+    .header h1 {
+      font-size: 1.25rem;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .stage-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    canvas {
+      width: min(88vw, 370px);
+      height: auto;
+      aspect-ratio: 9 / 16;
+      border-radius: 22px;
+      border: 2px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      background: #081318;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button,
+    a.btn-link {
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button.primary,
+    a.btn-link.primary {
+      background: var(--primary);
+      color: #042f2e;
+      border-color: transparent;
+      font-weight: 700;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .status {
+      font-size: 0.82rem;
+      color: var(--muted);
+      min-height: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <h1>CatatStruk — Video Marketing Studio (9:16)</h1>
+    <p>Resolusi penuh 1080&times;1920 (22 detik) dengan animasi user, fitur lengkap &amp; copywriting siap viral. Klik
+      <strong>Download Video (.webm)</strong> untuk merekam otomatis.
+    </p>
+  </div>
+
+  <div class="stage-wrap">
+    <canvas id="video-canvas" width="1080" height="1920"></canvas>
+    <div class="controls">
+      <button id="btn-play">Pause</button>
+      <button id="btn-restart">Ulangi</button>
+      <a href="./CatatStruk-Promo.mp4" download="CatatStruk-Promo.mp4" class="btn-link primary">Download MP4
+        Langsung</a>
+      <button id="btn-record">Rekam dari Browser</button>
+    </div>
+    <div id="rec-status" class="status">Memutar preview 30 detik...</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('video-canvas');
+    const ctx = canvas.getContext('2d');
+    const W = 1080;
+    const H = 1920;
+    const DURATION = 30.0;
+    const FONT = '"Segoe UI", system-ui, -apple-system, sans-serif';
+
+    let playing = true;
+    let t = 0;
+    let lastTs = performance.now();
+
+    const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+    const easeOut = (x) => 1 - Math.pow(1 - clamp(x), 3);
+
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.closePath();
+    }
+
+    function drawBg(time) {
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, '#071318');
+      grad.addColorStop(0.55, '#0b2229');
+      grad.addColorStop(1, '#071017');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      const g1 = ctx.createRadialGradient(260 + Math.sin(time) * 50, 380, 20, 260, 380, 480);
+      g1.addColorStop(0, 'rgba(20, 184, 166, 0.25)');
+      g1.addColorStop(1, 'transparent');
+      ctx.fillStyle = g1;
+      ctx.fillRect(0, 0, W, H);
+
+      const g2 = ctx.createRadialGradient(820, 1480 + Math.cos(time) * 50, 20, 820, 1480, 480);
+      g2.addColorStop(0, 'rgba(16, 185, 129, 0.18)');
+      g2.addColorStop(1, 'transparent');
+      ctx.fillStyle = g2;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    function drawPill(text, y = 120) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(20, 184, 166, 0.16)';
+      ctx.strokeStyle = 'rgba(45, 212, 191, 0.5)';
+      ctx.lineWidth = 3;
+      roundRect(W / 2 - 290, y, 580, 66, 33);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#5eead4';
+      ctx.font = `700 26px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, W / 2, y + 34, 540);
+      ctx.restore();
+    }
+
+    function drawTitle(lines, y, color = '#ffffff', size = 66) {
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.font = `800 ${size}px ${FONT}`;
+      ctx.textAlign = 'center';
+      lines.forEach((line, i) => {
+        ctx.fillText(line, W / 2, y + i * (size * 1.2), 940);
+      });
+      ctx.restore();
+    }
+
+    function drawSub(lines, y, color = '#cbd5e1', size = 34) {
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.font = `500 ${size}px ${FONT}`;
+      ctx.textAlign = 'center';
+      lines.forEach((line, i) => {
+        ctx.fillText(line, W / 2, y + i * (size * 1.35), 920);
+      });
+      ctx.restore();
+    }
+
+    // Reusable Animated User Avatar
+    function drawUserAvatar(x, y, scale, mood, time, hairColor = '#1e293b', shirtColor = '#0d9488', glasses = false) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+
+      const bob = Math.sin(time * 5) * 4;
+      ctx.translate(0, bob);
+
+      // Shoulders / Body
+      ctx.fillStyle = shirtColor;
+      roundRect(-75, 65, 150, 110, 44);
+      ctx.fill();
+
+      // Neck
+      ctx.fillStyle = '#f1c29b';
+      roundRect(-20, 42, 40, 32, 12);
+      ctx.fill();
+
+      // Head
+      ctx.fillStyle = '#fbd3b1';
+      ctx.beginPath();
+      ctx.arc(0, 0, 56, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Hair
+      ctx.fillStyle = hairColor;
+      ctx.beginPath();
+      ctx.arc(0, -14, 58, Math.PI, Math.PI * 2);
+      ctx.fill();
+
+      // Eyes (blink every ~3s)
+      const blink = (time % 3.2) > 3.05;
+      ctx.fillStyle = '#0f172a';
+      if (blink) {
+        ctx.fillRect(-26, -4, 14, 4);
+        ctx.fillRect(12, -4, 14, 4);
+      } else {
+        ctx.beginPath();
+        ctx.arc(-19, -4, 6, 0, Math.PI * 2);
+        ctx.arc(19, -4, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Glasses (for senior / parent avatar)
+      if (glasses) {
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(-33, -16, 28, 22);
+        ctx.strokeRect(5, -16, 28, 22);
+        ctx.beginPath();
+        ctx.moveTo(-5, -6);
+        ctx.lineTo(5, -6);
+        ctx.stroke();
+      }
+
+      // Mouth
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 4.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      if (mood === 'stressed') {
+        ctx.moveTo(-16, 24);
+        ctx.quadraticCurveTo(-8, 16, 0, 24);
+        ctx.quadraticCurveTo(8, 32, 16, 24);
+      } else {
+        ctx.arc(0, 14, 18, 0.15 * Math.PI, 0.85 * Math.PI);
+      }
+      ctx.stroke();
+
+      // Animated Arms
+      ctx.strokeStyle = '#fbd3b1';
+      ctx.lineWidth = 18;
+      if (mood === 'stressed') {
+        const wave = Math.sin(time * 9) * 16;
+        ctx.beginPath();
+        ctx.moveTo(-68, 95);
+        ctx.lineTo(-105, 35 + wave);
+        ctx.moveTo(68, 95);
+        ctx.lineTo(105, 35 - wave);
+        ctx.stroke();
+      } else if (mood === 'photo') {
+        ctx.beginPath();
+        ctx.moveTo(68, 100);
+        ctx.lineTo(108, 40);
+        ctx.stroke();
+        // Phone in hand
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        roundRect(90, -10, 44, 72, 10);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        const wave = Math.sin(time * 6) * 10;
+        ctx.beginPath();
+        ctx.moveTo(-68, 105);
+        ctx.lineTo(-98, 60 + wave);
+        ctx.moveTo(68, 105);
+        ctx.lineTo(98, 60 - wave);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawSpeechBubble(x, y, w, h, text, bg = '#ffffff', fg = '#0f172a') {
+      ctx.save();
+      ctx.fillStyle = bg;
+      roundRect(x - w / 2, y, w, h, 24);
+      ctx.fill();
+      ctx.fillStyle = fg;
+      ctx.font = `700 28px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x, y + h / 2, w - 28);
+      ctx.restore();
+    }
+
+    // Scene 1 (0 - 4.2s): Hook + Animated Stressed -> Happy User
+    function drawScene1(lt) {
+      drawPill('STOP RIBET CATAT KEUANGAN', 120);
+      drawTitle(['Uang Habis Ke Mana?', 'Struk Numpuk Males Nyatet?'], 270, '#ffffff', 62);
+
+      const switched = lt > 2.0;
+      if (!switched) {
+        // Floating messy receipts around stressed user
+        for (let i = 0; i < 4; i++) {
+          const ang = lt * 2.2 + i * 1.5;
+          const rx = W / 2 + Math.cos(ang) * 290;
+          const ry = 800 + Math.sin(ang * 1.3) * 110;
+          ctx.save();
+          ctx.translate(rx, ry);
+          ctx.rotate(Math.sin(lt * 3 + i) * 0.25);
+          ctx.fillStyle = '#f8fafc';
+          roundRect(-65, -85, 130, 170, 14);
+          ctx.fill();
+          ctx.fillStyle = '#ef4444';
+          ctx.font = `bold 24px ${FONT}`;
+          ctx.textAlign = 'center';
+          ctx.fillText('Rp ???', 0, 15);
+          ctx.restore();
+        }
+        drawUserAvatar(W / 2, 790, 1.5, 'stressed', lt, '#1e293b', '#dc2626', false);
+        drawSpeechBubble(W / 2, 510, 420, 74, 'Aduh, ribet ngetik satu-satu!', '#fee2e2', '#991b1b');
+      } else {
+        const p = easeOut((lt - 2.0) / 0.5);
+        ctx.save();
+        ctx.globalAlpha = p;
+        drawUserAvatar(W / 2, 790, 1.55, 'photo', lt, '#1e293b', '#0d9488', false);
+        drawSpeechBubble(W / 2, 500, 480, 78, 'Cukup FOTO, langsung tercatat!', '#ccfbf1', '#0f766e');
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.fillStyle = '#131c24';
+      ctx.strokeStyle = '#14b8a6';
+      ctx.lineWidth = 3;
+      roundRect(90, 1210, 900, 310, 32);
+      ctx.fill();
+      ctx.stroke();
+      drawTitle(['Kenalin: CatatStruk'], 1310, '#5eead4', 52);
+      drawSub([
+        'Foto struk belanja pakai kamera HP,',
+        'AI langsung ekstrak semua datanya dalam 3 detik!'
+      ], 1400, '#e2e8f0', 32);
+      ctx.restore();
+    }
+
+    // Scene 2 (4.2 - 9.2s): Foto Struk & AI Scan Detail
+    function drawScene2(lt) {
+      drawPill('1. FOTO STRUK → OTOMATIS RAPI', 110);
+      drawTitle(['Tinggal Jepret,', 'AI yang Kerja!'], 250, '#ffffff', 66);
+
+      // User on left taking photo
+      drawUserAvatar(175, 860, 1.05, 'photo', lt, '#1e293b', '#0f766e', false);
+
+      // Phone mockup on right
+      const px = 340, py = 460, pw = 640, ph = 1190;
+      ctx.save();
+      ctx.fillStyle = '#131c24';
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 7;
+      roundRect(px, py, pw, ph, 48);
+      ctx.fill();
+      ctx.stroke();
+
+      // Receipt preview
+      ctx.fillStyle = '#fafaf9';
+      roundRect(px + 45, py + 65, pw - 90, 450, 20);
+      ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.font = `bold 32px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText('INDOMARET POINT', px + pw / 2, py + 130, pw - 120);
+      ctx.font = `24px monospace`;
+      ctx.fillStyle = '#475569';
+      ctx.fillText('Air Mineral x2   Rp 12.000', px + pw / 2, py + 205, pw - 120);
+      ctx.fillText('Roti Gandum x1   Rp 19.000', px + pw / 2, py + 255, pw - 120);
+      ctx.fillText('Sabun Cair x1    Rp 29.500', px + pw / 2, py + 305, pw - 120);
+      ctx.fillStyle = '#0f766e';
+      ctx.font = `bold 34px monospace`;
+      ctx.fillText('TOTAL: Rp 60.500', px + pw / 2, py + 415, pw - 120);
+
+      // Scanning laser
+      const laserY = py + 85 + ((Math.sin(lt * 4.5) + 1) / 2) * 410;
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(px + 50, laserY);
+      ctx.lineTo(px + pw - 50, laserY);
+      ctx.stroke();
+
+      // Extracted rich info card
+      const pRes = easeOut((lt - 0.9) / 0.6);
+      ctx.globalAlpha = pRes;
+      ctx.fillStyle = '#0f766e';
+      roundRect(px + 38, py + 550, pw - 76, 580, 28);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'left';
+      const rows = [
+        '✓ Toko: Indomaret Point',
+        '✓ Tanggal: 26 Nov 2026',
+        '✓ Kategori: Belanja',
+        '✓ Metode: QRIS (Anti-Minus)',
+        '✓ Item & Harga: 3 baris terpisah',
+      ];
+      ctx.font = `600 28px ${FONT}`;
+      rows.forEach((r, i) => {
+        ctx.fillText(r, px + 72, py + 635 + i * 74, pw - 140);
+      });
+      ctx.fillStyle = '#a7f3d0';
+      ctx.font = `800 42px ${FONT}`;
+      ctx.fillText('Total: Rp 60.500', px + 72, py + 1045, pw - 140);
+      ctx.restore();
+    }
+
+    // Scene 3 (9.2 - 13.8s): Ramah Semua Usia (Orang Tua & Anak Muda)
+    function drawScene3(lt) {
+      drawPill('2. NYAMAN UNTUK SEMUA USIA', 110);
+      drawTitle(['Orang Tua Juga', 'Langsung Bisa Pakai!'], 250, '#ffffff', 64);
+
+      // Two animated users: Senior parent (with glasses & gray hair) + Young user
+      drawUserAvatar(300, 610, 1.15, 'happy', lt, '#94a3b8', '#0f766e', true);
+      drawSpeechBubble(300, 405, 340, 68, 'Tulisannya besar & jelas!', '#fef3c7', '#92400e');
+
+      drawUserAvatar(780, 610, 1.15, 'happy', lt + 1.0, '#1e293b', '#2563eb', false);
+      drawSpeechBubble(780, 405, 340, 68, 'Super ringan di HP!', '#dbeafe', '#1e40af');
+
+      // Rich feature list card
+      const features = [
+        { icon: '📱', title: 'Menu Bawah Ramah Jempol', desc: 'Tombol besar & label teks jelas, mudah ditekan.' },
+        { icon: '⚡', title: 'Super Ringan (~67 KB)', desc: 'Buka langsung di browser/HP tanpa install berat.' },
+        { icon: '💰', title: 'Format Rupiah & Anti-Minus', desc: 'Angka rapi otomatis, item & harga terpisah.' },
+        { icon: '🌙', title: 'Mode Terang & Gelap', desc: 'Nyaman di mata siang maupun malam hari.' },
+      ];
+
+      features.forEach((f, i) => {
+        const p = easeOut((lt - i * 0.25) / 0.5);
+        const y = 860 + i * 205;
+        ctx.save();
+        ctx.globalAlpha = p;
+        ctx.fillStyle = '#131c24';
+        ctx.strokeStyle = '#24323f';
+        ctx.lineWidth = 3;
+        roundRect(85, y, 910, 175, 28);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = `48px ${FONT}`;
+        ctx.textAlign = 'center';
+        ctx.fillText(f.icon, 155, y + 102);
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#5eead4';
+        ctx.font = `700 32px ${FONT}`;
+        ctx.fillText(f.title, 215, y + 72, 740);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = `500 26px ${FONT}`;
+        ctx.fillText(f.desc, 215, y + 124, 740);
+        ctx.restore();
+      });
+    }
+
+    // Scene 4 (13.8 - 18.2s): Connect, Export & Import 2-Arah Google Sheet
+    function drawScene4(lt) {
+      drawPill('3. GOOGLE SHEET PRIBADI (2-ARAH)', 110);
+      drawTitle(['Connect, Export &', 'Import Google Sheet!'], 250, '#ffffff', 64);
+
+      // Visual diagram: User Phone <-> Google Sheet <-> Laptop
+      ctx.save();
+      ctx.fillStyle = '#0f766e';
+      roundRect(95, 490, 260, 180, 28);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 30px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.fillText('📱 HP Kamu', 225, 575);
+      ctx.font = `24px ${FONT}`;
+      ctx.fillStyle = '#ccfbf1';
+      ctx.fillText('CatatStruk', 225, 620);
+
+      ctx.fillStyle = '#15803d';
+      roundRect(410, 490, 260, 180, 28);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 28px ${FONT}`;
+      ctx.fillText('📊 Google Sheet', 540, 575);
+      ctx.font = `24px ${FONT}`;
+      ctx.fillStyle = '#dcfce7';
+      ctx.fillText('Akun Pribadi', 540, 620);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 3;
+      roundRect(725, 490, 260, 180, 28);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 28px ${FONT}`;
+      ctx.fillText('💻 Laptop / HP Baru', 855, 575, 230);
+      ctx.font = `24px ${FONT}`;
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillText('Import Data', 855, 620);
+
+      // Animated data dots flying across
+      for (let i = 0; i < 3; i++) {
+        const prog = (lt * 1.3 + i * 0.33) % 1;
+        ctx.fillStyle = '#34d399';
+        ctx.beginPath();
+        ctx.arc(360 + prog * 45, 580, 8, 0, Math.PI * 2);
+        ctx.arc(675 + prog * 45, 580, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Export & Import cards
+      const p1 = easeOut(lt / 0.5);
+      ctx.save();
+      ctx.globalAlpha = p1;
+      ctx.fillStyle = '#0f766e';
+      roundRect(90, 740, 900, 380, 34);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `800 38px ${FONT}`;
+      ctx.textAlign = 'left';
+      ctx.fillText('↗ EXPORT KE GOOGLE SHEET', 145, 835, 790);
+      ctx.font = `500 30px ${FONT}`;
+      ctx.fillStyle = '#ccfbf1';
+      ctx.fillText('• Otomatis kirim setiap selesai foto struk.', 145, 915, 790);
+      ctx.fillText('• Kolom rapi: Tanggal, Toko, Item, Total, Bayar.', 145, 970, 790);
+      ctx.fillText('• 100% gratis pakai Google Apps Script pribadi.', 145, 1025, 790);
+      ctx.restore();
+
+      const p2 = easeOut((lt - 0.6) / 0.5);
+      ctx.save();
+      ctx.globalAlpha = p2;
+      ctx.fillStyle = '#131c24';
+      ctx.strokeStyle = '#14b8a6';
+      ctx.lineWidth = 4;
+      roundRect(90, 1180, 900, 380, 34);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#5eead4';
+      ctx.font = `800 38px ${FONT}`;
+      ctx.textAlign = 'left';
+      ctx.fillText('↙ IMPORT DARI GOOGLE SHEET', 145, 1275, 790);
+      ctx.font = `500 30px ${FONT}`;
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText('• Ganti HP atau hapus cache? Data tetap aman!', 145, 1355, 790);
+      ctx.fillText('• Tarik semua riwayat dari Sheet dalam 1 klik.', 145, 1410, 790);
+      ctx.fillText('• Anti duplikat & langsung masuk grafik bulanan.', 145, 1465, 790);
+      ctx.restore();
+    }
+
+    // Scene 5 (18.2 - 22.0s): Celebrating User + CTA
+    function drawScene5(lt) {
+      const p = easeOut(lt / 0.5);
+      ctx.save();
+      ctx.globalAlpha = p;
+
+      drawPill('GRATIS • RINGAN • PRIVAT', 130);
+      drawUserAvatar(W / 2, 470, 1.45, 'happy', lt, '#1e293b', '#0d9488', false);
+      drawSpeechBubble(W / 2, 230, 520, 78, 'Keuangan rapi tanpa pusing!', '#ccfbf1', '#0f766e');
+
+      drawTitle(['CatatStruk'], 830, '#ffffff', 94);
+      drawSub([
+        'Foto Struk • AI Scanner • Format Rupiah',
+        'Export & Import Google Sheet Pribadi'
+      ], 930, '#5eead4', 34);
+
+      ctx.fillStyle = '#ffffff';
+      roundRect(150, 1140, 780, 145, 72);
+      ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.font = `800 42px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Cobain Gratis Sekarang! 👇', W / 2, 1228, 720);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = `500 30px ${FONT}`;
+      ctx.fillText('Bagikan ke keluarga & teman biar makin hemat!', W / 2, 1390, 900);
+      ctx.restore();
+    }
+
+    function renderFrame(timeSec) {
+      drawBg(timeSec);
+
+      if (timeSec < 5.5) drawScene1(timeSec);
+      else if (timeSec < 12.0) drawScene2(timeSec - 5.5);
+      else if (timeSec < 18.5) drawScene3(timeSec - 12.0);
+      else if (timeSec < 25.0) drawScene4(timeSec - 18.5);
+      else drawScene5(timeSec - 25.0);
+
+      // Progress bar
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillRect(80, H - 70, W - 160, 10);
+      ctx.fillStyle = '#14b8a6';
+      ctx.fillRect(80, H - 70, (W - 160) * clamp(timeSec / DURATION), 10);
+    }
+
+    function loop(now) {
+      const dt = (now - lastTs) / 1000;
+      lastTs = now;
+      if (playing) {
+        t += dt;
+        if (t >= DURATION) t = 0;
+      }
+      renderFrame(t);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    document.getElementById('btn-play').addEventListener('click', (e) => {
+      playing = !playing;
+      e.target.textContent = playing ? 'Pause' : 'Play';
+    });
+
+    document.getElementById('btn-restart').addEventListener('click', () => {
+      t = 0;
+      playing = true;
+      document.getElementById('btn-play').textContent = 'Pause';
+    });
+
+    document.getElementById('btn-record').addEventListener('click', () => {
+      const btn = document.getElementById('btn-record');
+      const status = document.getElementById('rec-status');
+      btn.disabled = true;
+      t = 0;
+      playing = true;
+
+      try {
+        const stream = canvas.captureStream(30);
+        const candidates = [
+          { mime: 'video/webm;codecs=vp9', ext: 'webm' },
+          { mime: 'video/webm;codecs=vp8', ext: 'webm' },
+          { mime: 'video/webm', ext: 'webm' },
+          { mime: 'video/mp4', ext: 'mp4' },
+        ];
+        const chosen = candidates.find((c) => MediaRecorder.isTypeSupported(c.mime));
+        const recorder = chosen
+          ? new MediaRecorder(stream, { mimeType: chosen.mime, videoBitsPerSecond: 4500000 })
+          : new MediaRecorder(stream);
+        const ext = chosen ? chosen.ext : 'webm';
+        const chunks = [];
+
+        recorder.ondataavailable = (ev) => { if (ev.data.size > 0) chunks.push(ev.data); };
+        recorder.onerror = (ev) => {
+          btn.disabled = false;
+          status.textContent = 'Gagal merekam di browser. Gunakan tombol Download MP4 Langsung.';
+          console.error(ev);
+        };
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `CatatStruk-Promo-Reels.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          btn.disabled = false;
+          status.textContent = `Selesai! File CatatStruk-Promo-Reels.${ext} berhasil diunduh.`;
+        };
+
+        recorder.start(500);
+        status.textContent = 'Merekam video 30 detik (jangan tutup tab)...';
+        setTimeout(() => {
+          if (recorder.state !== 'inactive') recorder.stop();
+        }, DURATION * 1000);
+      } catch (err) {
+        btn.disabled = false;
+        status.textContent = 'Browser tidak mendukung rekam langsung. Gunakan Download MP4 Langsung.';
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+
+</html>
