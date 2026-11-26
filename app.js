@@ -1819,7 +1819,7 @@ function bindEvents() {
       return;
     }
     if (!isPremiumUser()) {
-      showToast('Sync Google Sheet khusus akun Premium (is_premium = Y). Anda di Mode Demo.', 'info');
+      showToast('Sync Google Sheet khusus akun Premium. Akun Anda saat ini User Reguler (Mode Demo).', 'info');
       return;
     }
     $('req-sheet-error').classList.add('hidden');
@@ -1832,7 +1832,7 @@ function bindEvents() {
       return;
     }
     if (!isPremiumUser()) {
-      showToast('Sync Google Sheet khusus akun Premium (is_premium = Y).', 'info');
+      showToast('Sync Google Sheet khusus akun Premium. Akun Anda saat ini User Reguler (Mode Demo).', 'info');
       return;
     }
     syncAllPending();

@@ -285,12 +285,12 @@ function renderYearSheet(sheet, year, receipts) {
     });
     var monthEndRow = allValues.length;
 
-    // Baris subtotal bulan (kolom A: hitung total ID transaksi bulan ini)
+    // Baris subtotal bulan (A:B = label "Total Transaksi", C:D = jumlah ID transaksi bulan ini)
     var subtotalRowNum = allValues.length + 1;
     allValues.push([
+      'Total Transaksi',
+      '',
       '=COUNTA(A' + monthStartRow + ':A' + monthEndRow + ')',
-      '',
-      '',
       '',
       'Subtotal ' + monthLabel,
       '=SUM(F' + monthStartRow + ':F' + monthEndRow + ')',
@@ -308,15 +308,15 @@ function renderYearSheet(sheet, year, receipts) {
     allValues.push(['', '', '', '', '', '', '', '', '']);
     grandTotalRow = allValues.length + 1;
     var grandTxFormula = '=' + subtotalRows.map(function (rNum) {
-      return 'A' + rNum;
+      return 'C' + rNum;
     }).join('+');
     var grandTotalFormula = '=' + subtotalRows.map(function (rNum) {
       return 'F' + rNum;
     }).join('+');
     allValues.push([
+      'Total Transaksi',
+      '',
       grandTxFormula,
-      '',
-      '',
       '',
       'TOTAL',
       grandTotalFormula,
@@ -358,28 +358,29 @@ function renderYearSheet(sheet, year, receipts) {
     });
   });
 
-  // Styling subtotal per bulan (merge A:B agar "Total Transaksi: N" tidak terpotong)
+  // Styling subtotal per bulan (merge A:B untuk label, merge C:D untuk angka total transaksi)
   subtotalRows.forEach(function (rNum) {
     sheet.getRange(rNum, 1, 1, 9).setFontWeight('bold').setBackground('#f1f5f9');
     sheet.getRange(rNum, 1, 1, 2).merge();
-    sheet.getRange(rNum, 1).setNumberFormat('"Total Transaksi: "0');
+    sheet.getRange(rNum, 3, 1, 2).merge().setHorizontalAlignment('center').setNumberFormat('0');
   });
 
-  // Styling grand total tahunan (merge A:B agar "Total Transaksi: N" tidak terpotong)
+  // Styling grand total tahunan (merge A:B untuk label, merge C:D untuk angka total transaksi)
   if (grandTotalRow) {
     sheet.getRange(grandTotalRow, 1, 1, 9).setFontWeight('bold').setBackground('#ccfbf1');
     sheet.getRange(grandTotalRow, 1, 1, 2).merge();
-    sheet.getRange(grandTotalRow, 1).setNumberFormat('"Total Transaksi: "0');
+    sheet.getRange(grandTotalRow, 3, 1, 2).merge().setHorizontalAlignment('center').setNumberFormat('0');
   }
 
-  // Sesuaikan lebar kolom & tinggi baris otomatis agar wrap tetap rapi
+  // Sesuaikan lebar kolom & tinggi baris otomatis; kolom E minimal 175px agar "Subtotal <Bulan>" 1 baris
   sheet.autoResizeColumns(1, 9);
   for (var c = 1; c <= 9; c++) {
     var w = sheet.getColumnWidth(c);
+    var minW = c === 5 ? 175 : 95;
     if (w > 260) {
       sheet.setColumnWidth(c, 260);
-    } else if (w < 95) {
-      sheet.setColumnWidth(c, 95);
+    } else if (w < minW) {
+      sheet.setColumnWidth(c, minW);
     }
   }
   sheet.autoResizeRows(1, numRows);
