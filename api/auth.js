@@ -4,6 +4,42 @@ import path from 'node:path';
 
 const AUTH_SECRET = process.env.AUTH_SECRET || 'catatstruk_dev_secret_change_in_prod';
 
+function hashPassword(plain) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derived = crypto.scryptSync(String(plain), salt, 64).toString('hex');
+  return `scrypt$${salt}$${derived}`;
+}
+
+function verifyPassword(plain, stored) {
+  const s = String(stored || '');
+  if (s.startsWith('scrypt$')) {
+    const parts = s.split('$');
+    if (parts.length !== 3) return false;
+    const [, salt, expectedHex] = parts;
+    const actualBuf = crypto.scryptSync(String(plain), salt, 64);
+    const expectedBuf = Buffer.from(expectedHex, 'hex');
+    if (actualBuf.length !== expectedBuf.length) return false;
+    return crypto.timingSafeEqual(actualBuf, expectedBuf);
+  }
+  return s === String(plain);
+}
+
+function getWibTimestamp() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  const hour = map.hour === '24' ? '00' : map.hour;
+  return `${map.year}-${map.month}-${map.day} ${hour}:${map.minute}:${map.second}`;
+}
+
 function signToken(payload) {
   const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const sig = crypto.createHmac('sha256', AUTH_SECRET).update(data).digest('base64url');
@@ -20,18 +56,35 @@ function verifyToken(token) {
   return parsed;
 }
 
+function getSupabaseRestBase() {
+  return String(process.env.SUPABASE_URL || '')
+    .trim()
+    .replace(/\/rest\/v1\/?$/i, '')
+    .replace(/\/+$/, '');
+}
+
+function buildSupabaseHeaders(key, extra = {}) {
+  const headers = { apikey: key, ...extra };
+  // Legacy service_role adalah JWT (eyJ...), sedangkan Secret key baru (sb_secret_...) cukup memakai header apikey
+  if (String(key).startsWith('eyJ')) {
+    headers.Authorization = `Bearer ${key}`;
+  }
+  return headers;
+}
+
 async function getUserByUsername(username) {
   const cleanUser = String(username || '').trim();
 
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const url = `${process.env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/users?username=eq.${encodeURIComponent(cleanUser)}&select=username,password,is_premium,sheet_url&limit=1`;
+    const url = `${getSupabaseRestBase()}/rest/v1/users?username=eq.${encodeURIComponent(cleanUser)}&select=username,password,is_premium,sheet_url&limit=1`;
     const res = await fetch(url, {
-      headers: {
-        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-      },
+      headers: buildSupabaseHeaders(process.env.SUPABASE_SERVICE_ROLE_KEY),
     });
-    if (!res.ok) throw new Error('Gagal query database Supabase');
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error('[auth] Supabase select error:', res.status, errBody);
+      throw new Error('DB_ERROR');
+    }
     const rows = await res.json();
     return rows?.[0] || null;
   }
@@ -68,17 +121,19 @@ async function updateUserSheetUrl(username, sheetUrl) {
   const cleanUrl = String(sheetUrl || '').trim();
 
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const url = `${process.env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/users?username=eq.${encodeURIComponent(cleanUser)}`;
+    const url = `${getSupabaseRestBase()}/rest/v1/users?username=eq.${encodeURIComponent(cleanUser)}`;
     const res = await fetch(url, {
       method: 'PATCH',
-      headers: {
-        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      headers: buildSupabaseHeaders(process.env.SUPABASE_SERVICE_ROLE_KEY, {
         'Content-Type': 'application/json',
-      },
+      }),
       body: JSON.stringify({ sheet_url: cleanUrl }),
     });
-    if (!res.ok) throw new Error('Gagal menyimpan link Sheet ke Supabase');
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error('[auth] Supabase patch error:', res.status, errBody);
+      throw new Error('DB_ERROR');
+    }
     return;
   }
 
@@ -114,29 +169,30 @@ async function updateUserSheetUrl(username, sheetUrl) {
 
 async function createUserInDb({ username, password, sheetUrl = '' }) {
   const cleanUser = String(username || '').trim();
-  const cleanPass = String(password || '');
+  const hashedPass = hashPassword(password);
   const cleanUrl = String(sheetUrl || '').trim();
+  const createdAt = getWibTimestamp();
 
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const url = `${process.env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/users`;
+    const url = `${getSupabaseRestBase()}/rest/v1/users`;
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      headers: buildSupabaseHeaders(process.env.SUPABASE_SERVICE_ROLE_KEY, {
         'Content-Type': 'application/json',
         Prefer: 'return=representation',
-      },
+      }),
       body: JSON.stringify({
         username: cleanUser,
-        password: cleanPass,
+        password: hashedPass,
         is_premium: 'Y',
         sheet_url: cleanUrl,
+        created_at: createdAt,
       }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err?.message || 'Gagal mendaftar di Supabase');
+      const errBody = await res.text();
+      console.error('[auth] Supabase insert error:', res.status, errBody);
+      throw new Error('DB_ERROR');
     }
     const rows = await res.json();
     return rows?.[0];
@@ -151,8 +207,8 @@ async function createUserInDb({ username, password, sheetUrl = '' }) {
         'Neon-Connection-String': process.env.NEON_DATABASE_URL,
       },
       body: JSON.stringify({
-        query: 'INSERT INTO users (username, password, is_premium, sheet_url) VALUES ($1, $2, $3, $4) RETURNING username, password, is_premium, sheet_url',
-        params: [cleanUser, cleanPass, 'Y', cleanUrl],
+        query: 'INSERT INTO users (username, password, is_premium, sheet_url, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING username, password, is_premium, sheet_url',
+        params: [cleanUser, hashedPass, 'Y', cleanUrl, createdAt],
       }),
     });
     if (!res.ok) throw new Error('Gagal mendaftar di Neon');
@@ -169,9 +225,10 @@ async function createUserInDb({ username, password, sheetUrl = '' }) {
   }
   const newUser = {
     username: cleanUser,
-    password: cleanPass,
+    password: hashedPass,
     is_premium: 'Y',
     sheet_url: cleanUrl,
+    created_at: createdAt,
   };
   users.push(newUser);
   fs.writeFileSync(localDbPath, JSON.stringify(users, null, 2));
@@ -235,11 +292,11 @@ export default async function handler(req, res) {
       return res.status(404).json({
         ok: false,
         notRegistered: true,
-        error: 'Akun belum terdaftar. Silakan klik "Daftar & Masuk" untuk membuat akun baru.',
+        error: 'Akun tidak ditemukan. Silakan daftar akun baru terlebih dahulu.',
       });
     }
-    if (row.password !== String(password)) {
-      return res.status(401).json({ ok: false, error: 'Password salah.' });
+    if (!verifyPassword(password, row.password)) {
+      return res.status(401).json({ ok: false, error: 'Username atau password salah.' });
     }
 
     const user = sanitizeUser(row);
@@ -251,6 +308,10 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ ok: true, token: newToken, user });
   } catch (err) {
-    return res.status(500).json({ ok: false, error: err.message || 'Auth error' });
+    console.error('[auth] Internal error:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'Terjadi gangguan pada server. Silakan coba beberapa saat lagi.',
+    });
   }
 }
