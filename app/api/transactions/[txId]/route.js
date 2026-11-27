@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { deleteTransaction } from '@/lib/server/transactions-service';
+import { writeAuditLog } from '@/lib/server/audit-service';
 
 export async function DELETE(request, context) {
   try {
@@ -7,6 +8,7 @@ export async function DELETE(request, context) {
     const params = await context.params;
     const txId = decodeURIComponent(params?.txId || '');
     await deleteTransaction(username, txId);
+    await writeAuditLog({ actor: username, action: 'TX_DELETE', target: txId, status: 'success', request });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[transactions DELETE] Error:', err);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendTemplateEmail } from '@/lib/server/email-service';
+import { writeAuditLog } from '@/lib/server/audit-service';
 
 export async function POST(request) {
   try {
@@ -25,6 +26,7 @@ export async function POST(request) {
       );
     }
 
+    await writeAuditLog({ actor: inviterUsername, action: 'FRIEND_INVITE', target: email, status: 'success', request });
     return NextResponse.json({ ok: true, message: `Undangan berhasil dikirim ke ${email}!` });
   } catch (err) {
     console.error('[friends/invite] Error:', err);

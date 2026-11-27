@@ -5,6 +5,7 @@ import {
   updateUserAdmin,
   deleteUserAdmin,
 } from '@/lib/server/admin-service';
+import { writeAuditLog } from '@/lib/server/audit-service';
 
 export async function GET() {
   try {
@@ -24,6 +25,7 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, error: 'Username dan password wajib diisi.' }, { status: 400 });
     }
     const user = await createUserAdmin({ username, email, password, is_premium_until, sheet_url });
+    await writeAuditLog({ actor: 'admin', action: 'ADMIN_USER_CREATE', target: username, status: 'success', request });
     return NextResponse.json({ ok: true, user });
   } catch (err) {
     if (err.message === 'USERNAME_EXISTS') {
@@ -42,6 +44,7 @@ export async function PATCH(request) {
       return NextResponse.json({ ok: false, error: 'Username wajib diisi.' }, { status: 400 });
     }
     const user = await updateUserAdmin({ username, email, password, is_premium_until, sheet_url });
+    await writeAuditLog({ actor: 'admin', action: 'ADMIN_USER_UPDATE', target: username, status: 'success', request });
     return NextResponse.json({ ok: true, user });
   } catch (err) {
     if (err.message === 'USER_NOT_FOUND') {
@@ -60,6 +63,7 @@ export async function DELETE(request) {
       return NextResponse.json({ ok: false, error: 'Username wajib diisi.' }, { status: 400 });
     }
     await deleteUserAdmin(username);
+    await writeAuditLog({ actor: 'admin', action: 'ADMIN_USER_DELETE', target: username, status: 'success', request });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[admin/users DELETE] Error:', err);

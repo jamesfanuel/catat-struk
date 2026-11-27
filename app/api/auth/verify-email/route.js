@@ -6,6 +6,7 @@ import {
   verifyOtpToken,
   sanitizeUser,
 } from '@/lib/server/auth-service';
+import { writeAuditLog } from '@/lib/server/audit-service';
 
 export async function POST(request) {
   try {
@@ -29,6 +30,7 @@ export async function POST(request) {
 
     await updateUserEmail(username, email);
     const updated = await getUserByUsername(username);
+    await writeAuditLog({ actor: username, action: 'AUTH_VERIFY_EMAIL', target: email, status: 'success', request });
     return NextResponse.json({ ok: true, user: sanitizeUser(updated) });
   } catch (err) {
     console.error('[auth/verify-email] Error:', err);

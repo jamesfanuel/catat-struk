@@ -52,17 +52,54 @@ export default function HomePage() {
 
         <main className="main-content">
           <section className="summary-card" aria-label="Financial Summary">
+            <div className="summary-header-row">
+              <div className="period-filter-wrap">
+                <button type="button" id="period-picker-btn" className="period-picker-btn" aria-label="Filter Periode Pengeluaran" aria-haspopup="dialog">
+                  <span id="period-picker-label">Bulan Ini</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="m6 9 6 6 6-6"/>
+                  </svg>
+                </button>
+                {/* Hidden select for compatibility — updated by app-client.js */}
+                <select id="period-filter" className="visually-hidden" aria-hidden="true" tabIndex="-1">
+                </select>
+              </div>
+            </div>
+
             <div className="summary-top">
-              <div>
-                <p className="summary-label">Monthly Expenses</p>
+              <div className="summary-left">
+                <p className="summary-label" id="summary-period-label">Monthly Expenses</p>
                 <h2 className="summary-amount" id="total-month">Rp 0</h2>
               </div>
-              <select id="month-filter" className="month-select" aria-label="Select Month"></select>
+              <div className="summary-right-actions">
+                <button type="button" id="btn-open-share" className="share-icon-btn" title="Share Recap" aria-label="Share Recap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                  </svg>
+                  <span>Share</span>
+                </button>
+              </div>
             </div>
 
             <div className="budget-wrap" id="budget-wrap">
               <div className="budget-meta">
-                <span id="budget-label">Monthly Budget: Rp 3.000.000</span>
+                <div className="budget-inline-edit" id="budget-inline-edit" title="Click to edit budget">
+                  <span>Target Budget:</span>
+                  <button type="button" id="budget-val-btn" className="budget-val-btn" aria-label="Edit Target Budget">
+                    <span id="budget-val-text">Rp 3.000.000</span>
+                    <svg className="budget-edit-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                    </svg>
+                  </button>
+                  <div id="budget-input-wrap" className="budget-input-wrap hidden">
+                    <span className="budget-input-prefix">Rp</span>
+                    <input type="text" id="budget-inline-input" inputMode="numeric" placeholder="0" aria-label="Target Budget" />
+                  </div>
+                </div>
                 <span id="budget-percent">0%</span>
               </div>
               <div className="progress-track">
@@ -247,99 +284,101 @@ export default function HomePage() {
         <div className="modal-sheet">
           <div className="modal-header">
             <h3 id="modal-receipt-title">Receipt Details</h3>
-            <button className="icon-btn" data-close="modal-receipt" aria-label="Close">&times;</button>
+            <button type="button" className="icon-btn" data-close="modal-receipt" aria-label="Close">&times;</button>
           </div>
-          <form id="receipt-form" className="modal-body">
-            <input type="hidden" id="form-id" />
-            <div id="form-thumb-wrap" className="thumb-preview hidden">
-              <img id="form-thumb" src={null} alt="Foto struk" />
-            </div>
-
-            <div className="form-grid">
-              <div className="field full">
-                <label htmlFor="form-merchant">Merchant / Store Name</label>
-                <input type="text" id="form-merchant" required placeholder="e.g. Starbucks, Whole Foods" />
+          <form id="receipt-form" className="modal-form">
+            <div className="modal-body">
+              <input type="hidden" id="form-id" />
+              <div id="form-thumb-wrap" className="thumb-preview hidden">
+                <img id="form-thumb" src={null} alt="Foto struk" />
               </div>
 
-              <div className="field">
-                <label htmlFor="form-date">Date</label>
-                <input type="date" id="form-date" required />
-              </div>
-
-              <div className="field">
-                <label htmlFor="form-category">Category</label>
-                <select id="form-category">
-                  <option value="Makanan & Minuman">Makanan &amp; Minuman</option>
-                  <option value="Belanja">Belanja</option>
-                  <option value="Transportasi">Transportasi</option>
-                  <option value="Tagihan">Tagihan</option>
-                  <option value="Kesehatan">Kesehatan</option>
-                  <option value="Hiburan">Hiburan</option>
-                  <option value="Lainnya">Lainnya</option>
-                </select>
-              </div>
-
-              <div className="field">
-                <label htmlFor="form-total">Total Payment</label>
-                <div className="currency-input">
-                  <span className="currency-prefix">Rp</span>
-                  <input type="text" id="form-total" inputMode="numeric" required placeholder="50.000" autoComplete="off" />
+              <div className="form-grid">
+                <div className="field full">
+                  <label htmlFor="form-merchant">Merchant / Store Name</label>
+                  <input type="text" id="form-merchant" required placeholder="e.g. Starbucks, Whole Foods" />
                 </div>
-              </div>
 
-              <div className="field">
-                <label htmlFor="form-payment">Payment Method</label>
-                <select id="form-payment">
-                  <option value="QRIS">QRIS</option>
-                  <option value="Tunai">Cash</option>
-                  <option value="Debit">Debit Card</option>
-                  <option value="Kredit">Credit Card</option>
-                  <option value="E-Wallet">E-Wallet</option>
-                  <option value="Transfer">Bank Transfer</option>
-                </select>
-              </div>
+                <div className="field">
+                  <label htmlFor="form-date">Date</label>
+                  <input type="date" id="form-date" required />
+                </div>
 
-              <div className="field full">
-                <div className="items-header">
-                  <label>Items &amp; Owner Tags</label>
-                  <div className="items-header-actions">
-                    <span id="items-subtotal" className="items-subtotal hidden">Subtotal: Rp 0</span>
-                    <button type="button" id="btn-add-item" className="btn-add-row" title="Add Item" aria-label="Add Item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 5v14M5 12h14" />
-                      </svg>
-                      <span>Add</span>
-                    </button>
+                <div className="field">
+                  <label htmlFor="form-category">Category</label>
+                  <select id="form-category">
+                    <option value="Makanan & Minuman">Makanan &amp; Minuman</option>
+                    <option value="Belanja">Belanja</option>
+                    <option value="Transportasi">Transportasi</option>
+                    <option value="Tagihan">Tagihan</option>
+                    <option value="Kesehatan">Kesehatan</option>
+                    <option value="Hiburan">Hiburan</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="form-total">Total Payment</label>
+                  <div className="currency-input">
+                    <span className="currency-prefix">Rp</span>
+                    <input type="text" id="form-total" inputMode="numeric" required placeholder="50.000" autoComplete="off" />
                   </div>
                 </div>
-                <datalist id="user-tag-list"></datalist>
-                <div id="items-container" className="items-container"></div>
-              </div>
 
-              <div className="field">
-                <label htmlFor="form-service-pct">Service Charge (% Optional)</label>
-                <div className="currency-input">
-                  <input type="text" id="form-service-pct" inputMode="decimal" placeholder="0" autoComplete="off" style={{ paddingLeft: '12px' }} />
-                  <span className="currency-prefix" style={{ paddingRight: '12px' }}>%</span>
+                <div className="field">
+                  <label htmlFor="form-payment">Payment Method</label>
+                  <select id="form-payment">
+                    <option value="QRIS">QRIS</option>
+                    <option value="Tunai">Cash</option>
+                    <option value="Debit">Debit Card</option>
+                    <option value="Kredit">Credit Card</option>
+                    <option value="E-Wallet">E-Wallet</option>
+                    <option value="Transfer">Bank Transfer</option>
+                  </select>
                 </div>
-              </div>
 
-              <div className="field">
-                <label htmlFor="form-tax-pct">Tax / PB1 (% Optional)</label>
-                <div className="currency-input">
-                  <input type="text" id="form-tax-pct" inputMode="decimal" placeholder="0" autoComplete="off" style={{ paddingLeft: '12px' }} />
-                  <span className="currency-prefix" style={{ paddingRight: '12px' }}>%</span>
+                <div className="field full">
+                  <div className="items-header">
+                    <label>Items &amp; Owner Tags</label>
+                    <div className="items-header-actions">
+                      <span id="items-subtotal" className="items-subtotal hidden">Subtotal: Rp 0</span>
+                      <button type="button" id="btn-add-item" className="btn-add-row" title="Add Item" aria-label="Add Item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 5v14M5 12h14" />
+                        </svg>
+                        <span>Add</span>
+                      </button>
+                    </div>
+                  </div>
+                  <datalist id="user-tag-list"></datalist>
+                  <div id="items-container" className="items-container"></div>
                 </div>
-              </div>
 
-              <div id="split-summary-box" className="field full split-summary-box hidden">
-                <div className="split-summary-title">Tax, Service &amp; Split Bill Summary</div>
-                <div id="split-summary-content" className="split-summary-content"></div>
-              </div>
+                <div className="field">
+                  <label htmlFor="form-service-pct">Service Charge (% Optional)</label>
+                  <div className="currency-input">
+                    <input type="text" id="form-service-pct" inputMode="decimal" placeholder="0" autoComplete="off" style={{ paddingLeft: '12px' }} />
+                    <span className="currency-prefix" style={{ paddingRight: '12px' }}>%</span>
+                  </div>
+                </div>
 
-              <div className="field full">
-                <label htmlFor="form-notes">Notes</label>
-                <input type="text" id="form-notes" placeholder="Optional (e.g. team lunch)" />
+                <div className="field">
+                  <label htmlFor="form-tax-pct">Tax / PB1 (% Optional)</label>
+                  <div className="currency-input">
+                    <input type="text" id="form-tax-pct" inputMode="decimal" placeholder="0" autoComplete="off" style={{ paddingLeft: '12px' }} />
+                    <span className="currency-prefix" style={{ paddingRight: '12px' }}>%</span>
+                  </div>
+                </div>
+
+                <div id="split-summary-box" className="field full split-summary-box hidden">
+                  <div className="split-summary-title">Tax, Service &amp; Split Bill Summary</div>
+                  <div id="split-summary-content" className="split-summary-content"></div>
+                </div>
+
+                <div className="field full">
+                  <label htmlFor="form-notes">Notes</label>
+                  <input type="text" id="form-notes" placeholder="Optional (e.g. team lunch)" />
+                </div>
               </div>
             </div>
 
@@ -651,6 +690,88 @@ export default function HomePage() {
                 No friends added yet.
               </p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="modal-share" className="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="modal-share-title">
+        <div className="modal-backdrop" data-close="modal-share"></div>
+        <div className="modal-sheet">
+          <div className="modal-header">
+            <h3 id="modal-share-title">Share Expense Recap</h3>
+            <button type="button" className="icon-btn" data-close="modal-share" aria-label="Close">&times;</button>
+          </div>
+          <div className="modal-body">
+            <div className="share-preview-wrap">
+              <canvas id="share-card-canvas" width={1080} height={1350} className="share-card-canvas"></canvas>
+            </div>
+
+            <label className="checkbox-row">
+              <input type="checkbox" id="share-hide-amount" />
+              <span>Hide exact Rp amount (privacy mode for social media)</span>
+            </label>
+
+            <div className="share-actions-grid">
+              <button type="button" id="btn-share-story" className="btn btn-primary share-story-btn">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                </svg>
+                <span>Share to IG Story</span>
+              </button>
+
+              <button type="button" id="btn-share-threads" className="btn btn-secondary share-threads-btn">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12.186 24C5.467 24 0 18.533 0 11.814 0 5.095 5.467 0 12.186 0c6.719 0 12.186 5.095 12.186 11.814 0 1.25-.19 2.47-.557 3.633a1.144 1.144 0 0 1-1.422.753 1.144 1.144 0 0 1-.754-1.422c.307-.978.465-1.996.465-3.036 0-5.485-4.433-9.947-9.918-9.947-5.485 0-9.918 4.462-9.918 9.947 0 5.485 4.433 9.948 9.918 9.948 3.518 0 6.64-1.847 8.35-4.94a1.145 1.145 0 0 1 1.558-.426 1.144 1.144 0 0 1 .426 1.558C20.407 21.68 16.584 24 12.186 24Zm4.512-14.838a1.144 1.144 0 0 0-1.487.674c-.053.15-.357.94-.855 1.536a3.837 3.837 0 0 1-2.17 1.25c-.247-.464-.543-.913-.888-1.339-1.28-1.583-3.076-2.454-5.056-2.454-3.69 0-6.104 2.808-6.104 6.34 0 3.398 2.27 6.096 5.522 6.564 2.822.406 5.42-.767 6.78-3.064.912-.047 1.838-.28 2.704-.73a5.553 5.553 0 0 0 2.228-2.187 7.785 7.785 0 0 0 .97-3.09c.046-.628-.42-1.164-1.048-1.21-.628-.046-1.164.42-1.21 1.048-.094.88-.38 1.7-.852 2.428-.46.708-1.127 1.233-1.932 1.517-.07.025-.138.05-.208.073-.138-.415-.347-.847-.64-1.269a9.664 9.664 0 0 0-1.248-1.396 6.064 6.064 0 0 0 1.048-1.173c.311-.47.532-1.048.568-1.155a1.144 1.144 0 0 0-.674-1.487ZM8.384 15.696c-1.895-.272-3.235-1.826-3.235-3.753 0-2.072 1.455-3.752 3.528-3.752 1.272 0 2.43.593 3.308 1.68.275.34.508.71.696 1.096-1.472.316-2.73 1.054-3.522 2.062a4.444 4.444 0 0 0-.775 2.667Zm3.868-.696c.49-.66 1.34-1.16 2.373-1.408.318.59.508 1.25.56 1.956-.848.452-1.87.525-2.933-.548Z" />
+                </svg>
+                <span>Share to Threads</span>
+              </button>
+
+              <button type="button" id="btn-share-download" className="btn btn-secondary">
+                Download PNG
+              </button>
+              <button type="button" id="btn-share-copy-caption" className="btn btn-secondary">
+                Copy Caption
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Period Picker Bottom Sheet */}
+      <div id="modal-period-picker" className="modal modal-bottom hidden" role="dialog" aria-modal="true" aria-labelledby="period-picker-title">
+        <div className="modal-backdrop" data-close="modal-period-picker"></div>
+        <div className="modal-sheet period-picker-sheet">
+          <div className="period-picker-handle"></div>
+          <div className="period-picker-header">
+            <h3 id="period-picker-title">Pilih Periode</h3>
+            <button type="button" className="icon-btn" data-close="modal-period-picker" aria-label="Tutup">&times;</button>
+          </div>
+          <div className="period-picker-body" id="period-picker-body">
+            {/* Dynamically populated by app-client.js */}
+          </div>
+        </div>
+      </div>
+
+      {/* Budget Confirm Modal */}
+      <div id="modal-budget-confirm" className="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="budget-confirm-title">
+        <div className="modal-backdrop"></div>
+        <div className="modal-sheet modal-compact">
+          <div className="modal-header">
+            <h3 id="budget-confirm-title">Konfirmasi Budget</h3>
+          </div>
+          <div className="modal-body modal-confirm-body">
+            <div id="budget-confirm-icon" className="confirm-icon confirm-icon-default">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <p id="budget-confirm-msg" className="confirm-msg"></p>
+          </div>
+          <div className="modal-footer confirm-footer">
+            <button type="button" id="btn-budget-cancel" className="btn btn-ghost">Batal</button>
+            <button type="button" id="btn-budget-ok" className="btn btn-primary">Simpan</button>
           </div>
         </div>
       </div>

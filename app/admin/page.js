@@ -74,7 +74,12 @@ export default function AdminPage() {
             </div>
           </section>
 
-          <section className="card">
+          <div className="view-tabs" style={{ marginBottom: '14px' }}>
+            <button type="button" id="admin-tab-users" className="view-tab active" data-admin-tab="users">Kelola User</button>
+            <button type="button" id="admin-tab-logs" className="view-tab" data-admin-tab="logs">Audit Trail</button>
+          </div>
+
+          <section className="card" id="admin-users-section">
             <div className="admin-toolbar">
               <div className="admin-toolbar-left">
                 <div className="search-box">
@@ -113,6 +118,38 @@ export default function AdminPage() {
               </table>
             </div>
             <p id="admin-empty" className="muted hidden" style={{ textAlign: 'center', margin: '18px 0 4px' }}>Tidak ada user yang cocok.</p>
+          </section>
+
+          <section className="card hidden" id="admin-logs-section">
+            <div className="admin-toolbar">
+              <div className="admin-toolbar-left">
+                <div className="search-box">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                  <input type="search" id="admin-log-search" placeholder="Cari actor, action, target..." />
+                </div>
+              </div>
+              <button type="button" id="btn-refresh-logs" className="btn btn-secondary">Refresh Log</button>
+            </div>
+
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Waktu (WIB)</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Status</th>
+                    <th>Detail &amp; IP</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-logs-tbody"></tbody>
+              </table>
+            </div>
+            <p id="admin-logs-empty" className="muted hidden" style={{ textAlign: 'center', margin: '18px 0 4px' }}>Belum ada audit log.</p>
           </section>
         </main>
       </div>

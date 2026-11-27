@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUserByUsername, verifyPassword, sanitizeUser, signToken } from '@/lib/server/auth-service';
 import { sendTemplateEmail } from '@/lib/server/email-service';
+import { writeAuditLog } from '@/lib/server/audit-service';
 
 export async function POST(request) {
   try {
@@ -13,6 +14,7 @@ export async function POST(request) {
 
     const row = await getUserByUsername(username);
     if (!row) {
+      await writeAuditLog({ actor: username, action: 'AUTH_LOGIN', target: username, status: 'failed', details: 'User not found', request });
       return NextResponse.json(
         {
           ok: false,
@@ -24,10 +26,12 @@ export async function POST(request) {
     }
 
     if (!verifyPassword(password, row.password)) {
+      await writeAuditLog({ actor: username, action: 'AUTH_LOGIN', target: username, status: 'failed', details: 'Invalid password', request });
       return NextResponse.json({ ok: false, error: 'Username atau password salah.' }, { status: 401 });
     }
 
     const user = sanitizeUser(row);
+    await writeAuditLog({ actor: user.username, action: 'AUTH_LOGIN', target: user.username, status: 'success', request });
     const token = signToken({
       username: user.username,
       exp: Date.now() + 24 * 60 * 60 * 1000,

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listFriends, addFriendByEmail, removeFriend } from '@/lib/server/friends-service';
+import { writeAuditLog } from '@/lib/server/audit-service';
 
 export async function GET(request) {
   try {
@@ -23,6 +24,7 @@ export async function POST(request) {
         { status: result.status || 400 }
       );
     }
+    await writeAuditLog({ actor: username, action: 'FRIEND_ADD', target: result.friend?.username || body.email, status: 'success', request });
     return NextResponse.json({ ok: true, friend: result.friend });
   } catch (err) {
     console.error('[friends POST] Error:', err);
@@ -35,6 +37,7 @@ export async function DELETE(request) {
     const username = request.headers.get('x-auth-user');
     const body = await request.json().catch(() => ({}));
     await removeFriend(username, body.friendUsername);
+    await writeAuditLog({ actor: username, action: 'FRIEND_REMOVE', target: String(body.friendUsername || ''), status: 'success', request });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[friends DELETE] Error:', err);

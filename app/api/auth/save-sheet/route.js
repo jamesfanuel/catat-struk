@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { updateUserSheetUrl, getUserByUsername, sanitizeUser } from '@/lib/server/auth-service';
+import { writeAuditLog } from '@/lib/server/audit-service';
 
 export async function POST(request) {
   try {
@@ -7,6 +8,7 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     await updateUserSheetUrl(username, body.sheetUrl || '');
     const updated = await getUserByUsername(username);
+    await writeAuditLog({ actor: username, action: 'USER_SAVE_SHEET', target: username, status: 'success', request });
     return NextResponse.json({ ok: true, user: sanitizeUser(updated) });
   } catch (err) {
     console.error('[auth/save-sheet] Internal error:', err);

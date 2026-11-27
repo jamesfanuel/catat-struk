@@ -109,6 +109,25 @@ CREATE INDEX IF NOT EXISTS idx_friends_username ON friends(username);
 GRANT ALL ON TABLE public.friends TO service_role;
 GRANT USAGE, SELECT ON SEQUENCE public.friends_id_seq TO service_role;
 
+-- Tabel audit_logs (catatan aktivitas / audit trail)
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id SERIAL PRIMARY KEY,
+  actor VARCHAR(64) NOT NULL DEFAULT '',
+  action VARCHAR(64) NOT NULL,
+  target VARCHAR(128) DEFAULT '',
+  status VARCHAR(24) NOT NULL DEFAULT 'success',
+  details TEXT DEFAULT '',
+  ip_address VARCHAR(64) DEFAULT '',
+  user_agent TEXT DEFAULT '',
+  created_at VARCHAR(19) NOT NULL DEFAULT to_char(NOW() AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI:SS')
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+
+GRANT ALL ON TABLE public.audit_logs TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.audit_logs_id_seq TO service_role;
+
 -- Contoh data awal untuk pengujian:
 INSERT INTO users (username, email, password, is_premium_until, sheet_url)
 VALUES

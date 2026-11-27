@@ -9,6 +9,7 @@ import {
   signToken,
 } from '@/lib/server/auth-service';
 import { sendTemplateEmail } from '@/lib/server/email-service';
+import { writeAuditLog } from '@/lib/server/audit-service';
 
 export async function POST(request) {
   try {
@@ -41,6 +42,14 @@ export async function POST(request) {
     const created = await createUserInDb({ username: cleanUser, email: cleanEmail, password, sheetUrl });
     const userNumber = await countUsersInDb();
     const user = sanitizeUser(created);
+    await writeAuditLog({
+      actor: user.username,
+      action: 'AUTH_REGISTER',
+      target: cleanEmail,
+      status: 'success',
+      details: `User #${userNumber}`,
+      request,
+    });
     const token = signToken({
       username: user.username,
       exp: Date.now() + 24 * 60 * 60 * 1000,

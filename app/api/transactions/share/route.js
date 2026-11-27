@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import { shareSplitTransactions } from '@/lib/server/transactions-service';
+import { writeAuditLog } from '@/lib/server/audit-service';
 
 export async function POST(request) {
   try {
     const username = request.headers.get('x-auth-user');
     const body = await request.json().catch(() => ({}));
     const result = await shareSplitTransactions(username, body.shares);
+    const targets = (body.shares || []).map((s) => s?.targetUsername).filter(Boolean).join(',');
+    await writeAuditLog({
+      actor: username,
+      action: 'TX_SPLIT_SHARE',
+      target: targets,
+      status: 'success',
+      details: `sharedCount=${result.sharedCount}`,
+      request,
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error('[transactions/share] Error:', err);

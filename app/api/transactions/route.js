@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listTransactions, insertMissingTransactions, upsertTransaction } from '@/lib/server/transactions-service';
+import { writeAuditLog } from '@/lib/server/audit-service';
 
 export async function GET(request) {
   try {
@@ -17,6 +18,15 @@ export async function POST(request) {
     const username = request.headers.get('x-auth-user');
     const body = await request.json().catch(() => ({}));
     const result = await insertMissingTransactions(username, body.transactions);
+    if (result.inserted > 0) {
+      await writeAuditLog({
+        actor: username,
+        action: 'TX_CREATE',
+        target: `${result.inserted} tx`,
+        status: 'success',
+        request,
+      });
+    }
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error('[transactions POST] Error:', err);
@@ -29,6 +39,13 @@ export async function PATCH(request) {
     const username = request.headers.get('x-auth-user');
     const body = await request.json().catch(() => ({}));
     const result = await upsertTransaction(username, body.transaction);
+    await writeAuditLog({
+      actor: username,
+      action: 'TX_UPDATE',
+      target: String(body.transaction?.id || ''),
+      status: 'success',
+      request,
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error('[transactions PATCH] Error:', err);
