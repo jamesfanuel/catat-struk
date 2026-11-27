@@ -54,8 +54,8 @@ export default function HomePage() {
           <section className="summary-card" aria-label="Financial Summary">
             <div className="summary-header-row">
               <div className="period-filter-wrap">
-                <button type="button" id="period-picker-btn" className="period-picker-btn" aria-label="Filter Periode Pengeluaran" aria-haspopup="dialog">
-                  <span id="period-picker-label">Bulan Ini</span>
+                <button type="button" id="period-picker-btn" className="period-picker-btn" aria-label="Filter Expense Period" aria-haspopup="dialog">
+                  <span id="period-picker-label">This Month</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="m6 9 6 6 6-6"/>
                   </svg>
@@ -64,6 +64,16 @@ export default function HomePage() {
                 <select id="period-filter" className="visually-hidden" aria-hidden="true" tabIndex="-1">
                 </select>
               </div>
+              <button type="button" id="btn-open-share" className="share-icon-btn" title="Share Recap" aria-label="Share Recap">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+                <span>Share</span>
+              </button>
             </div>
 
             <div className="summary-top">
@@ -72,16 +82,10 @@ export default function HomePage() {
                 <h2 className="summary-amount" id="total-month">Rp 0</h2>
               </div>
               <div className="summary-right-actions">
-                <button type="button" id="btn-open-share" className="share-icon-btn" title="Share Recap" aria-label="Share Recap">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="18" cy="5" r="3" />
-                    <circle cx="6" cy="12" r="3" />
-                    <circle cx="18" cy="19" r="3" />
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                  </svg>
-                  <span>Share</span>
-                </button>
+                <div id="summary-trend-badge" className="trend-badge hidden" aria-live="polite">
+                  <span id="summary-trend-arrows" className="trend-arrows"></span>
+                  <span id="summary-trend-pct" className="trend-pct"></span>
+                </div>
               </div>
             </div>
 
@@ -120,43 +124,6 @@ export default function HomePage() {
                 <span className="stat-label">Synced</span>
                 <strong className="stat-val" id="stat-synced">0 / 0</strong>
               </div>
-            </div>
-          </section>
-
-          <section className="scan-card" id="drop-zone">
-            <input type="file" id="input-camera" accept="image/*" capture="environment" className="hidden" />
-            <input type="file" id="input-gallery" accept="image/*" className="hidden" />
-
-            <div className="scan-hero">
-              <div className="scan-illustration" aria-hidden="true">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-                  <circle cx="12" cy="13" r="3" />
-                </svg>
-              </div>
-              <div>
-                <h3>Upload Receipt or Manual Entry</h3>
-                <p>AI automatically extracts merchant, items, date &amp; total.</p>
-              </div>
-            </div>
-
-            <div className="scan-buttons">
-              <button id="btn-gallery" className="btn btn-primary btn-lg">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" x2="12" y1="3" y2="15" />
-                </svg>
-                <span>Upload Receipt</span>
-              </button>
-              <button id="btn-manual" className="btn btn-secondary btn-lg" title="Manual entry">
-                <span>+ Manual Entry</span>
-              </button>
-            </div>
-
-            <div className="demo-bar">
-              <span>No receipt handy?</span>
-              <button id="btn-demo-scan" className="link-btn">Try Sample Receipt &rarr;</button>
             </div>
           </section>
 
@@ -213,9 +180,46 @@ export default function HomePage() {
             </div>
 
             <ul className="tx-list" id="tx-list"></ul>
+            <div id="tx-pagination" className="tx-pagination hidden" aria-label="Pagination"></div>
             <div className="empty-state hidden" id="empty-state">
               <p>No receipts recorded this month.</p>
-              <small>Snap or upload a receipt, or click <strong>Try Sample Receipt</strong> above!</small>
+            </div>
+
+            <div className="history-scan-wrap history-scan-centered" id="drop-zone">
+              <input type="file" id="input-camera" accept="image/*" capture="environment" className="hidden" />
+              <input type="file" id="input-gallery" accept="image/*" className="hidden" />
+
+              <div className="scan-hero">
+                <div className="scan-illustration" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                    <circle cx="12" cy="13" r="3" />
+                  </svg>
+                </div>
+                <div>
+                  <h3>Upload / Manual</h3>
+                  <p>AI automatically extracts merchant, items, date &amp; total.</p>
+                </div>
+              </div>
+
+              <div className="scan-buttons">
+                <button id="btn-gallery" className="btn btn-primary btn-lg">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" x2="12" y1="3" y2="15" />
+                  </svg>
+                  <span>Upload</span>
+                </button>
+                <button id="btn-manual" className="btn btn-secondary btn-lg" title="Manual input">
+                  <span>+ Manual</span>
+                </button>
+              </div>
+
+              <div id="history-demo-bar" className="demo-bar demo-bar-centered">
+                <span>No receipt handy?</span>
+                <button id="btn-demo-scan" className="link-btn">Try Sample Receipt &rarr;</button>
+              </div>
             </div>
           </section>
         </main>
@@ -300,8 +304,17 @@ export default function HomePage() {
                 </div>
 
                 <div className="field">
-                  <label htmlFor="form-date">Date</label>
-                  <input type="date" id="form-date" required />
+                  <label htmlFor="form-date-btn">Date</label>
+                  <input type="hidden" id="form-date" />
+                  <button type="button" id="form-date-btn" className="custom-date-trigger" aria-haspopup="dialog">
+                    <span id="form-date-label">Pilih tanggal</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </button>
                 </div>
 
                 <div className="field">
@@ -315,14 +328,6 @@ export default function HomePage() {
                     <option value="Hiburan">Hiburan</option>
                     <option value="Lainnya">Lainnya</option>
                   </select>
-                </div>
-
-                <div className="field">
-                  <label htmlFor="form-total">Total Payment</label>
-                  <div className="currency-input">
-                    <span className="currency-prefix">Rp</span>
-                    <input type="text" id="form-total" inputMode="numeric" required placeholder="50.000" autoComplete="off" />
-                  </div>
                 </div>
 
                 <div className="field">
@@ -378,6 +383,14 @@ export default function HomePage() {
                 <div className="field full">
                   <label htmlFor="form-notes">Notes</label>
                   <input type="text" id="form-notes" placeholder="Optional (e.g. team lunch)" />
+                </div>
+
+                <div className="field full">
+                  <label htmlFor="form-total">Total Payment (Auto)</label>
+                  <div className="currency-input currency-input-readonly">
+                    <span className="currency-prefix">Rp</span>
+                    <input type="text" id="form-total" inputMode="numeric" required readOnly placeholder="0 (dari item)" autoComplete="off" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -739,17 +752,39 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Period Picker Bottom Sheet */}
-      <div id="modal-period-picker" className="modal modal-bottom hidden" role="dialog" aria-modal="true" aria-labelledby="period-picker-title">
+      {/* Period Picker Modal */}
+      <div id="modal-period-picker" className="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="period-picker-title">
         <div className="modal-backdrop" data-close="modal-period-picker"></div>
         <div className="modal-sheet period-picker-sheet">
-          <div className="period-picker-handle"></div>
           <div className="period-picker-header">
-            <h3 id="period-picker-title">Pilih Periode</h3>
-            <button type="button" className="icon-btn" data-close="modal-period-picker" aria-label="Tutup">&times;</button>
+            <h3 id="period-picker-title">Select Period</h3>
+            <button type="button" className="icon-btn" data-close="modal-period-picker" aria-label="Close">&times;</button>
           </div>
           <div className="period-picker-body" id="period-picker-body">
             {/* Dynamically populated by app-client.js */}
+          </div>
+        </div>
+      </div>
+
+      {/* Custom Animated Date Picker Modal */}
+      <div id="modal-date-picker" className="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="date-picker-month-label">
+        <div className="modal-backdrop" data-close="modal-date-picker"></div>
+        <div className="modal-sheet date-picker-sheet">
+          <div className="dp-header">
+            <button type="button" id="dp-prev-month" className="dp-nav-btn" aria-label="Bulan sebelumnya">&lsaquo;</button>
+            <strong id="date-picker-month-label">November 2026</strong>
+            <button type="button" id="dp-next-month" className="dp-nav-btn" aria-label="Bulan berikutnya">&rsaquo;</button>
+          </div>
+          <div className="dp-weekdays">
+            <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
+          </div>
+          <div id="dp-grid" className="dp-grid"></div>
+          <div className="dp-footer">
+            <button type="button" id="dp-today-btn" className="btn btn-ghost dp-today-btn">Hari Ini</button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" className="btn btn-ghost" data-close="modal-date-picker">Batal</button>
+              <button type="button" id="dp-apply-btn" className="btn btn-primary">Pilih</button>
+            </div>
           </div>
         </div>
       </div>
