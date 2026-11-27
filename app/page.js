@@ -57,7 +57,7 @@ export default function HomePage() {
                 <button type="button" id="period-picker-btn" className="period-picker-btn" aria-label="Filter Expense Period" aria-haspopup="dialog">
                   <span id="period-picker-label">This Month</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="m6 9 6 6 6-6"/>
+                    <path d="m6 9 6 6 6-6" />
                   </svg>
                 </button>
                 {/* Hidden select for compatibility — updated by app-client.js */}
@@ -290,8 +290,9 @@ export default function HomePage() {
             <h3 id="modal-receipt-title">Receipt Details</h3>
             <button type="button" className="icon-btn" data-close="modal-receipt" aria-label="Close">&times;</button>
           </div>
-          <form id="receipt-form" className="modal-form">
+          <form id="receipt-form" className="modal-form" noValidate>
             <div className="modal-body">
+              <div id="receipt-form-alert" className="form-alert-error hidden" role="alert"></div>
               <input type="hidden" id="form-id" />
               <div id="form-thumb-wrap" className="thumb-preview hidden">
                 <img id="form-thumb" src={null} alt="Foto struk" />
@@ -299,12 +300,12 @@ export default function HomePage() {
 
               <div className="form-grid">
                 <div className="field full">
-                  <label htmlFor="form-merchant">Merchant / Store Name</label>
+                  <label htmlFor="form-merchant">Merchant / Store Name <span className="req-star" aria-hidden="true">*</span></label>
                   <input type="text" id="form-merchant" required placeholder="e.g. Starbucks, Whole Foods" />
                 </div>
 
                 <div className="field">
-                  <label htmlFor="form-date-btn">Date</label>
+                  <label htmlFor="form-date-btn">Date <span className="req-star" aria-hidden="true">*</span></label>
                   <input type="hidden" id="form-date" />
                   <button type="button" id="form-date-btn" className="custom-date-trigger" aria-haspopup="dialog">
                     <span id="form-date-label">Pilih tanggal</span>
@@ -318,7 +319,7 @@ export default function HomePage() {
                 </div>
 
                 <div className="field">
-                  <label htmlFor="form-category">Category</label>
+                  <label htmlFor="form-category">Category <span className="req-star" aria-hidden="true">*</span></label>
                   <select id="form-category">
                     <option value="Makanan & Minuman">Makanan &amp; Minuman</option>
                     <option value="Belanja">Belanja</option>
@@ -331,7 +332,7 @@ export default function HomePage() {
                 </div>
 
                 <div className="field">
-                  <label htmlFor="form-payment">Payment Method</label>
+                  <label htmlFor="form-payment">Payment Method <span className="req-star" aria-hidden="true">*</span></label>
                   <select id="form-payment">
                     <option value="QRIS">QRIS</option>
                     <option value="Tunai">Cash</option>
@@ -344,7 +345,7 @@ export default function HomePage() {
 
                 <div className="field full">
                   <div className="items-header">
-                    <label>Items &amp; Owner Tags</label>
+                    <label>Items &amp; Owner Tags <span className="req-star" aria-hidden="true">*</span></label>
                     <div className="items-header-actions">
                       <span id="items-subtotal" className="items-subtotal hidden">Subtotal: Rp 0</span>
                       <button type="button" id="btn-add-item" className="btn-add-row" title="Add Item" aria-label="Add Item">
@@ -381,13 +382,26 @@ export default function HomePage() {
                 </div>
 
                 <div className="field full">
+                  <label htmlFor="form-location">Lokasi Pembelian (Google Maps)</label>
+                  <div className="location-input-row">
+                    <input type="text" id="form-location" placeholder="Link Google Maps atau nama tempat (opsional)" />
+                    <button type="button" id="btn-get-location" className="btn btn-secondary btn-loc" title="Ambil koordinat GPS saat ini">
+                      📍 GPS
+                    </button>
+                    <a id="btn-open-location" className="btn btn-secondary btn-loc hidden" href="#" target="_blank" rel="noopener noreferrer" title="Buka di Google Maps">
+                      Maps ↗
+                    </a>
+                  </div>
+                </div>
+
+                <div className="field full">
                   <label htmlFor="form-notes">Notes</label>
                   <input type="text" id="form-notes" placeholder="Optional (e.g. team lunch)" />
                 </div>
 
                 <div className="field full">
-                  <label htmlFor="form-total">Total Payment (Auto)</label>
-                  <div className="currency-input currency-input-readonly">
+                  <label htmlFor="form-total">Total Payment (Auto) <span className="req-star" aria-hidden="true">*</span></label>
+                  <div id="form-total-wrap" className="currency-input currency-input-readonly">
                     <span className="currency-prefix">Rp</span>
                     <input type="text" id="form-total" inputMode="numeric" required readOnly placeholder="0 (dari item)" autoComplete="off" />
                   </div>
@@ -553,7 +567,7 @@ export default function HomePage() {
             </div>
 
             <div className="field">
-              <label htmlFor="req-sheet-url">Link Google Sheet Anda (Wajib)</label>
+              <label htmlFor="req-sheet-url">Link Google Sheet Anda <span className="req-star" aria-hidden="true">*</span></label>
               <input type="url" id="req-sheet-url" required placeholder="https://docs.google.com/spreadsheets/d/..." />
             </div>
 
@@ -581,17 +595,17 @@ export default function HomePage() {
             </p>
 
             <div className="field">
-              <label htmlFor="login-username">Username</label>
-              <input type="text" id="login-username" required autoComplete="username" placeholder="Enter username" />
+              <label htmlFor="login-username" id="login-username-label">Username or Email <span className="req-star" aria-hidden="true">*</span></label>
+              <input type="text" id="login-username" required autoComplete="username" placeholder="Enter username or email" />
             </div>
 
             <div className="field hidden" id="register-email-wrap">
-              <label htmlFor="login-email">Email (Required for OTP)</label>
+              <label htmlFor="login-email">Email (OTP) <span className="req-star" aria-hidden="true">*</span></label>
               <input type="email" id="login-email" autoComplete="email" placeholder="name@email.com" />
             </div>
 
             <div className="field">
-              <label htmlFor="login-password">Password</label>
+              <label htmlFor="login-password">Password <span className="req-star" aria-hidden="true">*</span></label>
               <input type="password" id="login-password" required autoComplete="current-password" placeholder="Enter password" />
             </div>
 
@@ -633,12 +647,23 @@ export default function HomePage() {
           </div>
           <form id="account-sheet-form" className="modal-body">
             <div className="account-profile-card">
-              <div className="account-avatar" id="account-avatar">U</div>
-              <div className="account-meta">
-                <div className="account-name" id="account-username">-</div>
-                <div className="account-email" id="account-email">-</div>
-                <span className="account-badge" id="account-tier">-</span>
-                <small className="account-expiry" id="account-expiry-note"></small>
+              <div className="account-card-head">
+                <span className="account-card-kicker">ACCOUNT PROFILE</span>
+                <span className="account-user-num hidden" id="account-user-number">MEMBER #1</span>
+              </div>
+              <div className="account-card-body">
+                <button type="button" className="account-avatar-btn" id="btn-upload-avatar" title="Upload / ganti foto profil" aria-label="Upload foto profil">
+                  <div className="account-avatar" id="account-avatar">U</div>
+                  <img id="account-avatar-img" className="account-avatar-img hidden" src={null} alt="Profile" />
+                  <span className="account-avatar-cam" aria-hidden="true">📷</span>
+                </button>
+                <input type="file" id="account-avatar-input" accept="image/*" className="hidden" />
+                <div className="account-meta">
+                  <div className="account-name" id="account-username">-</div>
+                  <div className="account-email" id="account-email">-</div>
+                  <span className="account-badge" id="account-tier">-</span>
+                  <small className="account-joined hidden" id="account-joined-at"></small>
+                </div>
               </div>
             </div>
 
@@ -647,7 +672,7 @@ export default function HomePage() {
                 Your account has no verified email yet. Please verify your email with OTP to continue.
               </p>
               <div className="field">
-                <label htmlFor="account-email-input">Account Email (OTP Verification)</label>
+                <label htmlFor="account-email-input">Update Account Email (OTP Verification)</label>
                 <div className="input-with-btn">
                   <input type="email" id="account-email-input" placeholder="name@email.com" autoComplete="email" />
                   <button type="button" id="btn-send-account-otp" className="btn btn-secondary">Send OTP</button>
@@ -681,8 +706,8 @@ export default function HomePage() {
             <button type="button" className="icon-btn" data-close="modal-friends" aria-label="Close">&times;</button>
           </div>
           <div className="modal-body">
-            <form id="add-friend-form" className="field" style={{ marginBottom: '12px' }}>
-              <label htmlFor="friend-email-input">Add Friend by Registered Email</label>
+            <form id="add-friend-form" className="field" style={{ marginBottom: '12px' }} noValidate>
+              <label htmlFor="friend-email-input">Add Friend by Registered Email <span className="req-star" aria-hidden="true">*</span></label>
               <div className="input-with-btn">
                 <input type="email" id="friend-email-input" required placeholder="friend@gmail.com" />
                 <button type="submit" id="btn-add-friend" className="btn btn-primary">Add</button>
@@ -799,7 +824,7 @@ export default function HomePage() {
           <div className="modal-body modal-confirm-body">
             <div id="budget-confirm-icon" className="confirm-icon confirm-icon-default">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
             <p id="budget-confirm-msg" className="confirm-msg"></p>

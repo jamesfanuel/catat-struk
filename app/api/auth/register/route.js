@@ -21,6 +21,12 @@ export async function POST(request) {
     if (!cleanUser || !password) {
       return NextResponse.json({ ok: false, error: 'Username dan password wajib diisi.' }, { status: 400 });
     }
+    if (!/^[a-zA-Z0-9._-]+$/.test(cleanUser)) {
+      return NextResponse.json(
+        { ok: false, error: 'Username tidak boleh mengandung spasi (gunakan huruf, angka, titik, underscore, atau strip, misal: nama.kamu).' },
+        { status: 400 }
+      );
+    }
     if (!cleanEmail || !cleanEmail.includes('@')) {
       return NextResponse.json({ ok: false, error: 'Email wajib diisi untuk pendaftaran.' }, { status: 400 });
     }

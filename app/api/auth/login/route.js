@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserByUsername, verifyPassword, sanitizeUser, signToken } from '@/lib/server/auth-service';
+import { getUserByUsername, getUserByEmail, verifyPassword, sanitizeUser, signToken, decryptField } from '@/lib/server/auth-service';
 import { sendTemplateEmail } from '@/lib/server/email-service';
 import { writeAuditLog } from '@/lib/server/audit-service';
 
@@ -7,14 +7,21 @@ export async function POST(request) {
   try {
     const body = await request.json().catch(() => ({}));
     const { username, password } = body;
+    const cleanId = String(username || '').trim();
 
-    if (!username || !password) {
-      return NextResponse.json({ ok: false, error: 'Username dan password wajib diisi.' }, { status: 400 });
+    if (!cleanId || !password) {
+      return NextResponse.json({ ok: false, error: 'Username/email dan password wajib diisi.' }, { status: 400 });
     }
 
-    const row = await getUserByUsername(username);
+    let row = null;
+    if (cleanId.includes('@')) {
+      row = await getUserByEmail(cleanId);
+    }
     if (!row) {
-      await writeAuditLog({ actor: username, action: 'AUTH_LOGIN', target: username, status: 'failed', details: 'User not found', request });
+      row = await getUserByUsername(cleanId);
+    }
+    if (!row) {
+      await writeAuditLog({ actor: cleanId, action: 'AUTH_LOGIN', target: cleanId, status: 'failed', details: 'User not found', request });
       return NextResponse.json(
         {
           ok: false,
@@ -37,7 +44,7 @@ export async function POST(request) {
       exp: Date.now() + 24 * 60 * 60 * 1000,
     });
 
-    const realEmail = String(row.email || '').trim();
+    const realEmail = decryptField(row.email || '');
     if (realEmail && user.is_expiring_soon) {
       sendTemplateEmail({
         to: realEmail,
