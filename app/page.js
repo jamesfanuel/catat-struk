@@ -1,0 +1,661 @@
+'use client';
+
+import { useEffect } from 'react';
+import { initApp } from '@/lib/client/app-client';
+
+export default function HomePage() {
+  useEffect(() => {
+    initApp();
+  }, []);
+
+  return (
+    <>
+      <div className="app-shell">
+        <header className="topbar">
+          <div className="brand">
+            <div className="brand-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+                <path d="M8 7h8M8 11h8M8 15h5" />
+              </svg>
+            </div>
+            <div>
+              <h1>CatatStruk</h1>
+              <span className="brand-sub">Snap &amp; Track Receipts</span>
+            </div>
+          </div>
+
+          <div className="topbar-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button type="button" className="icon-btn sheet-icon-btn" id="pill-sheet" title="Google Sheet Status" aria-label="Google Sheet Status">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <path d="M3 9h18M9 21V9" />
+              </svg>
+              <span className="sheet-status-dot"></span>
+              <span id="pill-sheet-text" className="sr-only">Not Connected</span>
+            </button>
+            <button id="btn-theme" className="icon-btn" title="Toggle Theme" aria-label="Toggle Theme">
+              <svg className="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+              </svg>
+              <svg className="icon-moon hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div id="premium-warning-banner" className="premium-banner hidden" role="alert">
+          <span id="premium-warning-text"></span>
+        </div>
+
+        <main className="main-content">
+          <section className="summary-card" aria-label="Financial Summary">
+            <div className="summary-top">
+              <div>
+                <p className="summary-label">Monthly Expenses</p>
+                <h2 className="summary-amount" id="total-month">Rp 0</h2>
+              </div>
+              <select id="month-filter" className="month-select" aria-label="Select Month"></select>
+            </div>
+
+            <div className="budget-wrap" id="budget-wrap">
+              <div className="budget-meta">
+                <span id="budget-label">Monthly Budget: Rp 3.000.000</span>
+                <span id="budget-percent">0%</span>
+              </div>
+              <div className="progress-track">
+                <div className="progress-fill" id="budget-progress" style={{ width: '0%' }}></div>
+              </div>
+            </div>
+
+            <div className="summary-stats">
+              <div className="stat-box">
+                <span className="stat-label">Receipts</span>
+                <strong className="stat-val" id="stat-count">0</strong>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">Avg / Receipt</span>
+                <strong className="stat-val" id="stat-avg">Rp 0</strong>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">Synced</span>
+                <strong className="stat-val" id="stat-synced">0 / 0</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="scan-card" id="drop-zone">
+            <input type="file" id="input-camera" accept="image/*" capture="environment" className="hidden" />
+            <input type="file" id="input-gallery" accept="image/*" className="hidden" />
+
+            <div className="scan-hero">
+              <div className="scan-illustration" aria-hidden="true">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                  <circle cx="12" cy="13" r="3" />
+                </svg>
+              </div>
+              <div>
+                <h3>Upload Receipt or Manual Entry</h3>
+                <p>AI automatically extracts merchant, items, date &amp; total.</p>
+              </div>
+            </div>
+
+            <div className="scan-buttons">
+              <button id="btn-gallery" className="btn btn-primary btn-lg">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" x2="12" y1="3" y2="15" />
+                </svg>
+                <span>Upload Receipt</span>
+              </button>
+              <button id="btn-manual" className="btn btn-secondary btn-lg" title="Manual entry">
+                <span>+ Manual Entry</span>
+              </button>
+            </div>
+
+            <div className="demo-bar">
+              <span>No receipt handy?</span>
+              <button id="btn-demo-scan" className="link-btn">Try Sample Receipt &rarr;</button>
+            </div>
+          </section>
+
+          <section className="card chart-card" id="chart-section">
+            <div className="card-header">
+              <h3>Expenses by Category</h3>
+              <button id="btn-export-csv" className="link-btn">Export CSV</button>
+            </div>
+            <div className="chart-body">
+              <div className="donut-wrap" id="donut-wrap">
+                <svg id="donut-svg" viewBox="0 0 120 120" className="donut-svg"></svg>
+                <div className="donut-center">
+                  <span id="donut-top-cat">-</span>
+                  <small id="donut-top-pct">0%</small>
+                </div>
+              </div>
+              <ul className="category-legend" id="category-legend"></ul>
+            </div>
+          </section>
+
+          <section className="card transactions-card" id="history-section">
+            <div className="card-header">
+              <h3>Receipt History</h3>
+              <div className="filter-row">
+                <select id="category-filter" className="mini-select" aria-label="Filter Category">
+                  <option value="all">All Categories</option>
+                  <option value="Makanan & Minuman">Makanan &amp; Minuman</option>
+                  <option value="Belanja">Belanja</option>
+                  <option value="Transportasi">Transportasi</option>
+                  <option value="Tagihan">Tagihan</option>
+                  <option value="Kesehatan">Kesehatan</option>
+                  <option value="Hiburan">Hiburan</option>
+                  <option value="Lainnya">Lainnya</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="view-tabs view-tabs-inline" role="tablist" aria-label="Expense Tabs">
+              <button type="button" id="tab-expense" className="view-tab active" role="tab" aria-selected="true" data-tab="expense">
+                <span>Expense</span>
+              </button>
+              <button type="button" id="tab-outstanding" className="view-tab" role="tab" aria-selected="false" data-tab="outstanding">
+                <span>Outstanding</span>
+                <span id="outstanding-badge" className="tab-badge hidden">0</span>
+              </button>
+            </div>
+
+            <div className="search-box">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input type="search" id="search-input" placeholder="Search merchant or item..." />
+            </div>
+
+            <ul className="tx-list" id="tx-list"></ul>
+            <div className="empty-state hidden" id="empty-state">
+              <p>No receipts recorded this month.</p>
+              <small>Snap or upload a receipt, or click <strong>Try Sample Receipt</strong> above!</small>
+            </div>
+          </section>
+        </main>
+
+        <footer className="app-footer">
+          <p>Fast, lightweight, &amp; synced to your personal Google Sheet.</p>
+        </footer>
+      </div>
+
+      <nav className="bottom-nav" aria-label="Menu Utama">
+        <button type="button" id="nav-sync" className="bottom-nav-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+            <path d="M16 16h5v5" />
+          </svg>
+          <span>Sync</span>
+        </button>
+        <button type="button" id="nav-camera" className="bottom-nav-camera" title="Foto Struk" aria-label="Foto Struk">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+            <circle cx="12" cy="13" r="3" />
+          </svg>
+        </button>
+        <button type="button" id="nav-account" className="bottom-nav-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          <span id="nav-settings-label">Settings</span>
+        </button>
+      </nav>
+
+      <div id="scan-overlay" className="overlay hidden" role="status" aria-live="polite">
+        <div className="scan-loader-card">
+          <div id="scanner-box" className="scanner-box">
+            <img id="scan-preview-img" src={null} alt="Preview struk" />
+            <div className="scan-beam"></div>
+            <div className="scan-corners" aria-hidden="true"></div>
+          </div>
+          <div id="sync-anim-box" className="sync-anim-box hidden" aria-hidden="true">
+            <div className="sync-ring"></div>
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M3 9h18M9 21V9" />
+            </svg>
+          </div>
+          <div className="loader-title-row">
+            <span className="mini-spinner" aria-hidden="true"></span>
+            <h3 id="scan-status-title">Membaca Struk dengan AI...</h3>
+          </div>
+          <p id="scan-status-desc">Mengekstrak toko, item belanja, dan total pembayaran.</p>
+          <div id="loader-slow-notice" className="loader-slow-notice hidden">
+            <span className="slow-dot" aria-hidden="true"></span>
+            <span>Koneksi ke server agak lambat. Mohon tunggu sebentar lagi, proses masih berjalan...</span>
+          </div>
+          <div className="loader-progress">
+            <div className="loader-progress-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="modal-receipt" className="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="modal-receipt-title">
+        <div className="modal-backdrop" data-close="modal-receipt"></div>
+        <div className="modal-sheet">
+          <div className="modal-header">
+            <h3 id="modal-receipt-title">Receipt Details</h3>
+            <button className="icon-btn" data-close="modal-receipt" aria-label="Close">&times;</button>
+          </div>
+          <form id="receipt-form" className="modal-body">
+            <input type="hidden" id="form-id" />
+            <div id="form-thumb-wrap" className="thumb-preview hidden">
+              <img id="form-thumb" src={null} alt="Foto struk" />
+            </div>
+
+            <div className="form-grid">
+              <div className="field full">
+                <label htmlFor="form-merchant">Merchant / Store Name</label>
+                <input type="text" id="form-merchant" required placeholder="e.g. Starbucks, Whole Foods" />
+              </div>
+
+              <div className="field">
+                <label htmlFor="form-date">Date</label>
+                <input type="date" id="form-date" required />
+              </div>
+
+              <div className="field">
+                <label htmlFor="form-category">Category</label>
+                <select id="form-category">
+                  <option value="Makanan & Minuman">Makanan &amp; Minuman</option>
+                  <option value="Belanja">Belanja</option>
+                  <option value="Transportasi">Transportasi</option>
+                  <option value="Tagihan">Tagihan</option>
+                  <option value="Kesehatan">Kesehatan</option>
+                  <option value="Hiburan">Hiburan</option>
+                  <option value="Lainnya">Lainnya</option>
+                </select>
+              </div>
+
+              <div className="field">
+                <label htmlFor="form-total">Total Payment</label>
+                <div className="currency-input">
+                  <span className="currency-prefix">Rp</span>
+                  <input type="text" id="form-total" inputMode="numeric" required placeholder="50.000" autoComplete="off" />
+                </div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="form-payment">Payment Method</label>
+                <select id="form-payment">
+                  <option value="QRIS">QRIS</option>
+                  <option value="Tunai">Cash</option>
+                  <option value="Debit">Debit Card</option>
+                  <option value="Kredit">Credit Card</option>
+                  <option value="E-Wallet">E-Wallet</option>
+                  <option value="Transfer">Bank Transfer</option>
+                </select>
+              </div>
+
+              <div className="field full">
+                <div className="items-header">
+                  <label>Items &amp; Owner Tags</label>
+                  <div className="items-header-actions">
+                    <span id="items-subtotal" className="items-subtotal hidden">Subtotal: Rp 0</span>
+                    <button type="button" id="btn-add-item" className="btn-add-row" title="Add Item" aria-label="Add Item">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      <span>Add</span>
+                    </button>
+                  </div>
+                </div>
+                <datalist id="user-tag-list"></datalist>
+                <div id="items-container" className="items-container"></div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="form-service-pct">Service Charge (% Optional)</label>
+                <div className="currency-input">
+                  <input type="text" id="form-service-pct" inputMode="decimal" placeholder="0" autoComplete="off" style={{ paddingLeft: '12px' }} />
+                  <span className="currency-prefix" style={{ paddingRight: '12px' }}>%</span>
+                </div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="form-tax-pct">Tax / PB1 (% Optional)</label>
+                <div className="currency-input">
+                  <input type="text" id="form-tax-pct" inputMode="decimal" placeholder="0" autoComplete="off" style={{ paddingLeft: '12px' }} />
+                  <span className="currency-prefix" style={{ paddingRight: '12px' }}>%</span>
+                </div>
+              </div>
+
+              <div id="split-summary-box" className="field full split-summary-box hidden">
+                <div className="split-summary-title">Tax, Service &amp; Split Bill Summary</div>
+                <div id="split-summary-content" className="split-summary-content"></div>
+              </div>
+
+              <div className="field full">
+                <label htmlFor="form-notes">Notes</label>
+                <input type="text" id="form-notes" placeholder="Optional (e.g. team lunch)" />
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button type="button" id="btn-delete-tx" className="btn btn-danger hidden">Delete</button>
+              <div className="footer-right">
+                <button type="button" className="btn btn-ghost" data-close="modal-receipt">Cancel</button>
+                <button type="submit" className="btn btn-primary">Save &amp; Sync</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="modal-settings" className="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-settings-title">
+        <div className="modal-backdrop" data-close="modal-settings"></div>
+        <div className="modal-sheet modal-lg">
+          <div className="modal-header">
+            <h3 id="modal-settings-title">Pengaturan &amp; Koneksi</h3>
+            <button className="icon-btn" data-close="modal-settings" aria-label="Tutup">&times;</button>
+          </div>
+          <div className="modal-body">
+            <div className="settings-section">
+              <h4>1. Gemini AI Scanner (Gratis &amp; Privat)</h4>
+              <p className="muted">API Key disimpan hanya di browser kamu. Kosongkan jika ingin mencoba Mode Demo.</p>
+              <div className="field">
+                <label htmlFor="setting-gemini-key">Gemini API Key</label>
+                <input type="password" id="setting-gemini-key" placeholder="AIzaSy..." autoComplete="off" />
+              </div>
+              <div className="field">
+                <label htmlFor="setting-gemini-model">Model Gemini</label>
+                <select id="setting-gemini-model">
+                  <option value="gemini-flash-lite-latest">gemini-flash-lite-latest (Rekomendasi, Cepat &amp; Hemat)</option>
+                  <option value="gemini-flash-latest">gemini-flash-latest</option>
+                  <option value="gemini-3.8-flash">gemini-3.8-flash</option>
+                  <option value="gemini-pro-latest">gemini-pro-latest (Struk Panjang/Buram)</option>
+                </select>
+              </div>
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" className="link-btn">Dapatkan API Key gratis di Google AI Studio ↗</a>
+            </div>
+
+            <hr className="divider" />
+
+            <div className="settings-section">
+              <h4>2. Connect Google Sheets Pribadi</h4>
+              <p className="muted">Setiap user bisa menghubungkan ke Google Sheet pribadinya sendiri tanpa login rumit.</p>
+              <div className="field">
+                <label htmlFor="setting-sheet-url">Link Google Sheet Anda (Privat / Restricted)</label>
+                <div className="input-with-btn">
+                  <input type="url" id="setting-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/.../edit" />
+                  <button type="button" id="btn-test-sheet" className="btn btn-secondary">Test</button>
+                </div>
+              </div>
+              <div className="sheet-sync-actions">
+                <button type="button" id="btn-export-sheet" className="btn btn-secondary">Export ke Google Sheet</button>
+                <button type="button" id="btn-import-sheet" className="btn btn-secondary">Import dari Google Sheet</button>
+                <a id="btn-open-sheet-settings" href="#" target="_blank" rel="noopener noreferrer" className="btn btn-primary sheet-open-full hidden">Buka Google Sheet Saya ↗</a>
+              </div>
+              <label className="checkbox-row">
+                <input type="checkbox" id="setting-auto-sync" defaultChecked />
+                <span>Otomatis kirim ke Google Sheet setiap simpan struk</span>
+              </label>
+              <details className="setup-guide">
+                <summary>Cara Hubungkan ke Google Sheet Pribadi (1 Menit)</summary>
+                <ol>
+                  <li>Buka <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a> untuk membuat Google Sheet baru.</li>
+                  <li>Klik menu <strong>Extensions</strong> &rarr; <strong>Apps Script</strong>.</li>
+                  <li>Hapus kode lama, lalu salin &amp; tempel kode di bawah ini:</li>
+                </ol>
+                <div className="code-box">
+                  <button type="button" id="btn-copy-gas" className="copy-btn">Salin Kode</button>
+                  <pre><code id="gas-code-preview"></code></pre>
+                </div>
+                <ol start="4">
+                  <li>Klik <strong>Deploy</strong> &rarr; <strong>New deployment</strong> &rarr; pilih tipe <strong>Web app</strong>.</li>
+                  <li>Set <em>Who has access</em> ke <strong>Anyone</strong>, lalu klik <strong>Deploy</strong> dan salin URL-nya ke kolom di atas.</li>
+                </ol>
+              </details>
+            </div>
+
+            <hr className="divider" />
+
+            <div className="settings-section">
+              <h4>3. Target Budget &amp; Data</h4>
+              <div className="field">
+                <label htmlFor="setting-budget">Target Budget Bulanan</label>
+                <div className="currency-input">
+                  <span className="currency-prefix">Rp</span>
+                  <input type="text" id="setting-budget" inputMode="numeric" placeholder="3.000.000" autoComplete="off" />
+                </div>
+              </div>
+              <div className="danger-zone">
+                <button type="button" id="btn-clear-data" className="btn btn-danger-outline">Hapus Semua Data Lokal</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-footer">
+            <div className="footer-right">
+              <button type="button" className="btn btn-ghost" data-close="modal-settings">Tutup</button>
+              <button type="button" id="btn-save-settings" className="btn btn-primary">Simpan Pengaturan</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="modal-require-sheet" className="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="modal-req-title">
+        <div className="modal-backdrop" data-close="modal-require-sheet"></div>
+        <div className="modal-sheet">
+          <div className="modal-header">
+            <h3 id="modal-req-title">Hubungkan Google Sheet Anda</h3>
+            <button type="button" id="btn-close-req-sheet" className="icon-btn" data-close="modal-require-sheet" aria-label="Close">&times;</button>
+          </div>
+          <form id="require-sheet-form" className="modal-body">
+            <p className="muted">Pilih mode akses Google Sheet Anda terlebih dahulu:</p>
+
+            <div className="sheet-mode-tabs" role="radiogroup" aria-label="Mode Akses Google Sheet">
+              <button type="button" id="btn-sheet-mode-private" className="sheet-mode-btn active" data-sheet-mode="private">
+                Privat (Invite Bot)
+              </button>
+              <button type="button" id="btn-sheet-mode-public" className="sheet-mode-btn" data-sheet-mode="public">
+                Publik (Tanpa Invite)
+              </button>
+            </div>
+
+            <div id="guide-sheet-private" className="setup-guide">
+              <p className="muted" style={{ marginTop: 0 }}>
+                Sheet tetap <strong>Privat (Restricted)</strong> &amp; aman. Anda hanya perlu invite email bot berikut sebagai <strong>Editor</strong>:
+              </p>
+              <div id="bot-email-box" className="input-with-btn" style={{ margin: '8px 0' }}>
+                <input type="text" id="bot-email-display" readOnly defaultValue="Memuat email bot..." aria-label="Email Bot Google Sheet" />
+                <button type="button" id="btn-copy-bot-email" className="icon-btn" title="Salin email bot" aria-label="Salin email bot" style={{ flexShrink: 0 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                  </svg>
+                </button>
+              </div>
+              <ol>
+                <li>Buka <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a> untuk membuat Google Sheet baru yang kosong.</li>
+                <li>Klik tombol <strong>Bagikan (Share)</strong> di kanan atas.</li>
+                <li>Biarkan akses umum tetap <strong>Dibatasi (Restricted)</strong>.</li>
+                <li>Tempel email bot di atas ke kolom <em>Tambahkan orang</em>, pilih peran <strong>Editor</strong>, lalu klik <strong>Kirim / Bagikan</strong>.</li>
+                <li>Salin link Google Sheet Anda dan tempel di bawah ini:</li>
+              </ol>
+            </div>
+
+            <div id="guide-sheet-public" className="setup-guide hidden">
+              <p className="muted" style={{ marginTop: 0 }}>
+                Tidak perlu invite email bot secara manual, namun akses Sheet harus diatur menjadi <strong>Publik (Editor)</strong>:
+              </p>
+              <ol>
+                <li>Buka <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a> untuk membuat Google Sheet baru yang kosong.</li>
+                <li>Klik tombol <strong>Bagikan (Share)</strong> di kanan atas.</li>
+                <li>Pada bagian <em>Akses umum (General access)</em>, ubah dari <strong>Dibatasi</strong> menjadi <strong>Siapa saja yang memiliki link (Anyone with the link)</strong>.</li>
+                <li>Ubah izin di sebelahnya menjadi <strong>Editor</strong>, lalu klik <strong>Selesai (Done)</strong>.</li>
+                <li>Salin link Google Sheet Anda dan tempel di bawah ini:</li>
+              </ol>
+            </div>
+
+            <div className="field">
+              <label htmlFor="req-sheet-url">Link Google Sheet Anda (Wajib)</label>
+              <input type="url" id="req-sheet-url" required placeholder="https://docs.google.com/spreadsheets/d/..." />
+            </div>
+
+            <p id="req-sheet-error" className="form-error hidden"></p>
+
+            <div className="modal-footer auth-footer-center">
+              <button type="submit" id="btn-save-req-sheet" className="btn btn-primary btn-full">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="modal-login" className="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="modal-login-title">
+        <div className="modal-backdrop"></div>
+        <div className="modal-sheet">
+          <div className="modal-header auth-header" id="auth-modal-header">
+            <div>
+              <span id="auth-mode-badge" className="auth-badge">SIGN IN</span>
+              <h3 id="modal-login-title">Sign In to CatatStruk</h3>
+            </div>
+          </div>
+          <form id="login-form" className="modal-body">
+            <p id="login-subtitle" className="muted">
+              Sign in with your account to view and record receipts.
+            </p>
+
+            <div className="field">
+              <label htmlFor="login-username">Username</label>
+              <input type="text" id="login-username" required autoComplete="username" placeholder="Enter username" />
+            </div>
+
+            <div className="field hidden" id="register-email-wrap">
+              <label htmlFor="login-email">Email (Required for OTP)</label>
+              <input type="email" id="login-email" autoComplete="email" placeholder="name@email.com" />
+            </div>
+
+            <div className="field">
+              <label htmlFor="login-password">Password</label>
+              <input type="password" id="login-password" required autoComplete="current-password" placeholder="Enter password" />
+            </div>
+
+            <div className="field hidden" id="register-confirm-wrap">
+              <label htmlFor="login-confirm-password">Confirm Password</label>
+              <input type="password" id="login-confirm-password" autoComplete="new-password" placeholder="Repeat password" />
+            </div>
+
+            <div className="field hidden" id="register-sheet-wrap">
+              <label htmlFor="login-sheet-url">Google Sheet Link (Optional)</label>
+              <input type="url" id="login-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/..." />
+            </div>
+
+            <div className="field hidden" id="register-otp-wrap">
+              <label htmlFor="login-otp">Email OTP Code (6 Digits)</label>
+              <div className="input-with-btn">
+                <input type="text" id="login-otp" inputMode="numeric" maxLength={6} placeholder="Enter 6-digit OTP" autoComplete="one-time-code" />
+                <button type="button" id="btn-resend-otp" className="btn btn-secondary">Resend</button>
+              </div>
+              <small className="muted">Check your inbox or spam folder.</small>
+            </div>
+
+            <p id="login-error" className="form-error hidden"></p>
+
+            <div className="modal-footer auth-footer-center">
+              <button type="submit" id="btn-login-submit" className="btn btn-primary btn-full">Sign In</button>
+              <button type="button" id="btn-toggle-auth-mode" className="btn btn-secondary btn-full">Don&apos;t have an account? Sign Up</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="modal-account" className="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="modal-account-title">
+        <div className="modal-backdrop" id="account-modal-backdrop" data-close="modal-account"></div>
+        <div className="modal-sheet">
+          <div className="modal-header">
+            <h3 id="modal-account-title">Account Settings</h3>
+            <button type="button" id="btn-close-account-modal" className="icon-btn" data-close="modal-account" aria-label="Close">&times;</button>
+          </div>
+          <form id="account-sheet-form" className="modal-body">
+            <div className="account-profile-card">
+              <div className="account-avatar" id="account-avatar">U</div>
+              <div className="account-meta">
+                <div className="account-name" id="account-username">-</div>
+                <div className="account-email" id="account-email">-</div>
+                <span className="account-badge" id="account-tier">-</span>
+                <small className="account-expiry" id="account-expiry-note"></small>
+              </div>
+            </div>
+
+            <div id="account-email-verify-wrap" className="settings-section">
+              <p id="account-email-required-note" className="form-error hidden" style={{ marginTop: 0 }}>
+                Your account has no verified email yet. Please verify your email with OTP to continue.
+              </p>
+              <div className="field">
+                <label htmlFor="account-email-input">Account Email (OTP Verification)</label>
+                <div className="input-with-btn">
+                  <input type="email" id="account-email-input" placeholder="name@email.com" autoComplete="email" />
+                  <button type="button" id="btn-send-account-otp" className="btn btn-secondary">Send OTP</button>
+                </div>
+              </div>
+              <div className="field hidden" id="account-otp-wrap" style={{ marginTop: '8px' }}>
+                <label htmlFor="account-otp-input">OTP Code (6 Digits)</label>
+                <div className="input-with-btn">
+                  <input type="text" id="account-otp-input" inputMode="numeric" maxLength={6} placeholder="Enter 6-digit OTP" />
+                  <button type="button" id="btn-verify-account-email" className="btn btn-primary">Verify</button>
+                </div>
+              </div>
+              <p id="account-email-error" className="form-error hidden"></p>
+            </div>
+
+            <div className="modal-footer auth-footer-center">
+              <a id="btn-open-sheet" href="#" target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-full hidden" style={{ textDecoration: 'none' }}>Open Google Sheet ↗</a>
+              <button type="button" id="btn-open-sheet-guide" className="btn btn-secondary btn-full">📊 Google Sheet Setup &amp; Guide</button>
+              <button type="button" id="btn-open-friends" className="btn btn-secondary btn-full">👥 Manage Friends</button>
+              <button type="button" id="btn-logout" className="btn btn-danger-outline btn-full">Sign Out</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="modal-friends" className="modal modal-center hidden" role="dialog" aria-modal="true" aria-labelledby="modal-friends-title">
+        <div className="modal-backdrop" data-close="modal-friends"></div>
+        <div className="modal-sheet">
+          <div className="modal-header">
+            <h3 id="modal-friends-title">Friends &amp; Invite</h3>
+            <button type="button" className="icon-btn" data-close="modal-friends" aria-label="Close">&times;</button>
+          </div>
+          <div className="modal-body">
+            <form id="add-friend-form" className="field" style={{ marginBottom: '12px' }}>
+              <label htmlFor="friend-email-input">Add Friend by Registered Email</label>
+              <div className="input-with-btn">
+                <input type="email" id="friend-email-input" required placeholder="friend@gmail.com" />
+                <button type="submit" id="btn-add-friend" className="btn btn-primary">Add</button>
+              </div>
+            </form>
+
+            <div id="friend-not-found-box" className="friend-not-found-box hidden">
+              <p id="friend-not-found-text">No registered user found with this email.</p>
+              <button type="button" id="btn-invite-friend" className="btn btn-secondary btn-full">
+                Send App Invite via Email
+              </button>
+            </div>
+
+            <div className="settings-section" style={{ marginTop: '14px' }}>
+              <h4 style={{ marginBottom: '8px' }}>My Friends</h4>
+              <ul id="friends-list" className="friends-list"></ul>
+              <p id="friends-empty" className="muted hidden" style={{ textAlign: 'center', margin: '12px 0 0' }}>
+                No friends added yet.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="toast-container" className="toast-container" aria-live="polite"></div>
+    </>
+  );
+}

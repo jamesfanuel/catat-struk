@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server';
+
 const CATEGORIES = [
   'Makanan & Minuman',
   'Belanja',
@@ -8,24 +10,20 @@ const CATEGORIES = [
   'Lainnya',
 ];
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, error: 'Method not allowed' });
-  }
-
+export async function POST(request) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(503).json({
-      ok: false,
-      error: 'GEMINI_API_KEY belum diatur di server (.env / Vercel).',
-    });
+    return NextResponse.json(
+      { ok: false, error: 'GEMINI_API_KEY belum diatur di server (.env / Vercel).' },
+      { status: 503 }
+    );
   }
 
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    const body = await request.json().catch(() => ({}));
     const { imageBase64, model = 'gemini-flash-lite-latest', today } = body;
     if (!imageBase64) {
-      return res.status(400).json({ ok: false, error: 'Gambar struk kosong.' });
+      return NextResponse.json({ ok: false, error: 'Gambar struk kosong.' }, { status: 400 });
     }
 
     const fallbackDate = /^\d{4}-\d{2}-\d{2}$/.test(today || '')
@@ -38,6 +36,10 @@ export default async function handler(req, res) {
   "date": "YYYY-MM-DD (konversi format DD-MM-YY atau DD/MM/YY jika ada; gunakan ${fallbackDate} jika tidak terbaca)",
   "category": "salah satu dari: Makanan & Minuman, Belanja, Transportasi, Tagihan, Kesehatan, Hiburan, Lainnya",
   "total": 0,
+  "tax": 0,
+  "service": 0,
+  "taxPct": 0,
+  "servicePct": 0,
   "paymentMethod": "salah satu dari: QRIS, Tunai, Debit, Kredit, E-Wallet, Transfer",
   "items": [
     { "name": "nama item", "qty": 1, "price": 0 }
@@ -46,7 +48,8 @@ export default async function handler(req, res) {
 }
 Aturan penting:
 - Jika harga tertulis memakai 'K' atau 'rb' (misal 350K, 80K, 980K), konversi menjadi angka penuh Rupiah (350000, 80000, 980000).
-- Pastikan total dan price berupa angka bulat Rupiah >= 0 tanpa titik/koma.`;
+- Pastikan total, tax, service, dan price berupa angka bulat Rupiah >= 0 tanpa titik/koma.
+- Jika di struk tertulis persentase service charge (misal "Service 5%") atau pajak/PB1/PPN (misal "PB1 10%", "Tax 10%", "PPN 11%"), isi angka persennya ke "servicePct" / "taxPct" (misal 5, 10, 11). Jika tidak ada, isi 0.`;
 
     const candidates = [
       model,
@@ -87,38 +90,42 @@ Aturan penting:
 
     if (!gemRes || !gemRes.ok) {
       const status = gemRes ? gemRes.status : 500;
-      return res.status(status).json({
-        ok: false,
-        error: `Gemini API error (${status}): ${lastErrText.slice(0, 160)}`,
-      });
+      return NextResponse.json(
+        { ok: false, error: `Gemini API error (${status}): ${lastErrText.slice(0, 160)}` },
+        { status }
+      );
     }
 
     const json = await gemRes.json();
     const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawText) {
-      return res.status(502).json({ ok: false, error: 'Respon Gemini kosong.' });
+      return NextResponse.json({ ok: false, error: 'Respon Gemini kosong.' }, { status: 502 });
     }
 
     const parsed = JSON.parse(rawText);
-    return res.status(200).json({
+    return NextResponse.json({
       ok: true,
       data: {
         merchant: parsed.merchant || 'Struk Belanja',
         date: /^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ? parsed.date : fallbackDate,
         category: CATEGORIES.includes(parsed.category) ? parsed.category : 'Lainnya',
         total: Math.max(0, Math.round(Number(parsed.total) || 0)),
+        tax: Math.max(0, Math.round(Number(parsed.tax) || 0)),
+        service: Math.max(0, Math.round(Number(parsed.service) || 0)),
+        taxPct: Math.max(0, Number(parsed.taxPct) || 0),
+        servicePct: Math.max(0, Number(parsed.servicePct) || 0),
         paymentMethod: parsed.paymentMethod || 'QRIS',
         items: Array.isArray(parsed.items)
           ? parsed.items.map((i) => ({
-              name: String(i.name || ''),
-              qty: Math.max(1, Math.round(Number(i.qty) || 1)),
-              price: Math.max(0, Math.round(Number(i.price) || 0)),
-            }))
+            name: String(i.name || ''),
+            qty: Math.max(1, Math.round(Number(i.qty) || 1)),
+            price: Math.max(0, Math.round(Number(i.price) || 0)),
+          }))
           : [],
         notes: parsed.notes || '',
       },
     });
   } catch (err) {
-    return res.status(500).json({ ok: false, error: err.message || 'Gagal memindai struk' });
+    return NextResponse.json({ ok: false, error: err.message || 'Gagal memindai struk' }, { status: 500 });
   }
 }

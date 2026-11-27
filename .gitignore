@@ -3,3 +3,7 @@
 .env*.local
 .vercel
 node_modules/
+.next/
+
+.vercel
+.env*

@@ -395,6 +395,7 @@ function doPost(e) {
     if (data.action === 'send_email') {
       MailApp.sendEmail({
         to: String(data.to || ''),
+        name: 'CatatStruk',
         subject: String(data.subject || 'Notifikasi CatatStruk'),
         htmlBody: String(data.htmlBody || '')
       });
