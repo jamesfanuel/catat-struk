@@ -13,6 +13,11 @@ export const metadata = {
   description:
     'CatatStruk - Aplikasi pencatat keuangan super ringan. Foto struk belanja, ekstrak otomatis dengan AI, dan sinkron langsung ke Google Sheets pribadi.',
   manifest: '/manifest.json',
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export const viewport = {

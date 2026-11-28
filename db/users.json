@@ -12,5 +12,33 @@
     "password": "123456",
     "is_premium_until": null,
     "sheet_url": ""
+  },
+  {
+    "username": "andi.pratama",
+    "email": "andi.pratama@example.com",
+    "password": "123456",
+    "is_premium_until": "9999-01-01",
+    "sheet_url": ""
+  },
+  {
+    "username": "budi.santoso",
+    "email": "budi.santoso@example.com",
+    "password": "123456",
+    "is_premium_until": "9999-01-01",
+    "sheet_url": ""
+  },
+  {
+    "username": "citra.lestari",
+    "email": "citra.lestari@example.com",
+    "password": "123456",
+    "is_premium_until": "9999-01-01",
+    "sheet_url": ""
+  },
+  {
+    "username": "dewi.anggraini",
+    "email": "dewi.anggraini@example.com",
+    "password": "123456",
+    "is_premium_until": "9999-01-01",
+    "sheet_url": ""
   }
 ]

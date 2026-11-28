@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
+import PasswordInput from '@/components/PasswordInput';
 import { initAdmin } from '@/lib/client/admin-client';
 
 export default function AdminPage() {
@@ -167,7 +168,7 @@ export default function AdminPage() {
             <p className="muted">Masukkan password admin (<code>ADMIN_PASSWORD</code> di <code>.env</code>).</p>
             <div className="field">
               <label htmlFor="admin-password-input">Password Admin</label>
-              <input type="password" id="admin-password-input" required autoComplete="current-password" placeholder="Masukkan password admin" />
+              <PasswordInput id="admin-password-input" required autoComplete="current-password" placeholder="Masukkan password admin" />
             </div>
             <p id="admin-login-error" className="form-error hidden"></p>
             <div className="modal-footer auth-footer-center">
@@ -199,7 +200,7 @@ export default function AdminPage() {
 
             <div className="field">
               <label htmlFor="user-form-password" id="user-form-password-label">Password</label>
-              <input type="password" id="user-form-password" placeholder="Minimal 4 karakter" />
+              <PasswordInput id="user-form-password" placeholder="Minimal 4 karakter" />
             </div>
 
             <div className="field">

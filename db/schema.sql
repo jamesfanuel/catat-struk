@@ -94,20 +94,37 @@ GRANT USAGE, SELECT ON SEQUENCE public.transactions_id_seq TO service_role;
 GRANT ALL ON TABLE public.transaction_items TO service_role;
 GRANT USAGE, SELECT ON SEQUENCE public.transaction_items_id_seq TO service_role;
 
--- Tabel friends (daftar teman berdasarkan email terdaftar)
+-- Tabel friends (daftar teman dalam grup berdasarkan email terdaftar, maks 50)
 CREATE TABLE IF NOT EXISTS friends (
   id SERIAL PRIMARY KEY,
   username VARCHAR(64) NOT NULL,
   friend_username VARCHAR(64) NOT NULL,
   friend_email VARCHAR(255) DEFAULT '',
+  group_name VARCHAR(100) NOT NULL DEFAULT 'Umum',
   created_at VARCHAR(19) NOT NULL DEFAULT to_char(NOW() AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI:SS'),
   CONSTRAINT friends_user_friend_unique UNIQUE (username, friend_username)
 );
+
+ALTER TABLE friends ADD COLUMN IF NOT EXISTS group_name VARCHAR(100) NOT NULL DEFAULT 'Umum';
 
 CREATE INDEX IF NOT EXISTS idx_friends_username ON friends(username);
 
 GRANT ALL ON TABLE public.friends TO service_role;
 GRANT USAGE, SELECT ON SEQUENCE public.friends_id_seq TO service_role;
+
+-- Tabel friend_groups (daftar grup eksklusif milik user untuk itinerary & split bill)
+CREATE TABLE IF NOT EXISTS friend_groups (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(64) NOT NULL,
+  group_name VARCHAR(100) NOT NULL,
+  created_at VARCHAR(19) NOT NULL DEFAULT to_char(NOW() AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI:SS'),
+  CONSTRAINT friend_groups_user_name_unique UNIQUE (username, group_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_friend_groups_username ON friend_groups(username);
+
+GRANT ALL ON TABLE public.friend_groups TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.friend_groups_id_seq TO service_role;
 
 -- Tabel audit_logs (catatan aktivitas / audit trail)
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -128,9 +145,90 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 GRANT ALL ON TABLE public.audit_logs TO service_role;
 GRANT USAGE, SELECT ON SEQUENCE public.audit_logs_id_seq TO service_role;
 
--- Contoh data awal untuk pengujian:
-INSERT INTO users (username, email, password, is_premium_until, sheet_url)
+-- Tabel version_history (catatan pembaruan & fitur tiap versi aplikasi)
+CREATE TABLE IF NOT EXISTS version_history (
+  id SERIAL PRIMARY KEY,
+  version VARCHAR(32) UNIQUE NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  released_at VARCHAR(19) NOT NULL DEFAULT to_char(NOW() AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI:SS')
+);
+
+GRANT ALL ON TABLE public.version_history TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.version_history_id_seq TO service_role;
+
+INSERT INTO version_history (version, title, items)
 VALUES
-  ('premium', 'premium@example.com', '123456', '9999-01-01', ''),
-  ('demo', 'demo@example.com', '123456', NULL, '')
-ON CONFLICT (username) DO NOTHING;
+  (
+    'v1.1',
+    'Multi-Scan, Groups, Itinerary Split Bill & Social Food Journal',
+    '[
+      {"title": "Scan Multiple Struk (Batch Upload)", "details": ["Pilih atau drag & drop hingga 5 foto struk sekaligus dari galeri/PC.", "Semua struk diekstrak otomatis dan bisa langsung dikonfirmasi & disimpan sekaligus."]},
+      {"title": "Merchant Favorit & Statistik Kunjungan", "details": ["Konfirmasi nama merchant saat scan struk dan pantau berapa kali berkunjung serta total pengeluaran per bulan/tahun."]},
+      {"title": "Groups & Members (Maks. 50 Orang, Lock 1x24 Jam)", "details": ["Buat grup bernama khusus dan invite anggota via email (maksimal 50 teman eksklusif).", "Grup terkunci otomatis setelah 1x24 jam untuk menjaga integritas Split Bill & Itinerary."]},
+      {"title": "Reimbursement Tracker (Pengingat Klaim Kantor)", "details": ["Tandai struk untuk pengembalian dana ke kantor (Belum Diklaim / Sudah Diklaim).", "Cek total dana siap klaim dan daftar pengingat di tab Reimburse."]},
+      {"title": "Planning Itinerary (Bayar Sendiri vs Split Bill)", "details": ["Buat rencana perjalanan dengan budget maksimum, rincian biaya per hari/jam, dan pemisahan Bayar Sendiri vs Split Bill grup.", "Struk yang dihubungkan ke itinerary otomatis mengurangi sisa budget dengan warning jika mendekati atau melebihi limit."]},
+      {"title": "Social Food Journal (Tumblr-Style Feed)", "details": ["Feed kartu foto makanan & tempat makan berdasarkan hashtag kategori, lokasi GPS, dan sort rating/harga.", "Bagikan rekomendasi ber-hashtag ke WhatsApp atau buka langsung di Google Maps."]},
+      {"title": "Multi-Bahasa (ID/EN), Sidebar Routes & Zero-Trust Security", "details": ["Toggle bahasa ID/EN di kanan atas, Hamburger Sidebar (/itinerary, /social) dengan animasi transisi, serta Rate Limit, Throttling & Zero-Trust Middleware."]}
+    ]'::jsonb
+  ),
+  (
+    'v1.0',
+    'Rilis Awal (Core Expense & Google Sheets Sync)',
+    '[
+      {"title": "Foto Struk & Hybrid AI / OCR Lokal", "details": ["Ekstraksi otomatis toko, tanggal, kategori, item, dan total Rupiah via Gemini Vision API dengan cadangan OCR Lokal (Tesseract.js)."]},
+      {"title": "Sinkronisasi 2-Arah Google Sheets Pribadi", "details": ["Mendukung mode Privat (Invite Bot) maupun Publik (Apps Script Bridge), merge cell otomatis, format Rupiah, dan rumus TOTAL."]},
+      {"title": "Autentikasi, Enkripsi & Multi-Database", "details": ["Registrasi & Login OTP Email, scrypt, session HMAC-SHA256, dan enkripsi AES-256-GCM (Supabase / Neon / JSON lokal)."]},
+      {"title": "Split Bill, Analitik & PWA", "details": ["Tag teman (@username) & tab Outstanding, grafik SVG Donut Chart, batas anggaran bulanan, dan Share Recap."]}
+    ]'::jsonb
+  )
+ON CONFLICT (version) DO UPDATE SET
+  title = EXCLUDED.title,
+  items = EXCLUDED.items;
+
+-- Tabel Itinerary Planner per user
+CREATE TABLE IF NOT EXISTS itineraries (
+  id BIGSERIAL PRIMARY KEY,
+  plan_id TEXT NOT NULL,
+  username TEXT NOT NULL,
+  title TEXT NOT NULL,
+  budget_limit BIGINT DEFAULT 0,
+  group_name TEXT DEFAULT '',
+  items JSONB DEFAULT '[]'::jsonb,
+  created_at TEXT DEFAULT '',
+  updated_at TEXT DEFAULT '',
+  UNIQUE (username, plan_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_itineraries_username ON itineraries(username);
+GRANT ALL ON TABLE public.itineraries TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.itineraries_id_seq TO service_role;
+
+-- Tabel Social Journal (ulasan tempat, makanan, hobi, travel, dll.)
+CREATE TABLE IF NOT EXISTS social_journal (
+  id BIGSERIAL PRIMARY KEY,
+  post_id TEXT NOT NULL UNIQUE,
+  username TEXT NOT NULL,
+  resto TEXT NOT NULL,
+  menu TEXT DEFAULT '',
+  category TEXT DEFAULT 'fnb',
+  price BIGINT DEFAULT 0,
+  rating NUMERIC(3,1) DEFAULT 5.0,
+  location TEXT DEFAULT '',
+  note TEXT DEFAULT '',
+  tags JSONB DEFAULT '[]'::jsonb,
+  created_at_ms BIGINT DEFAULT 0,
+  created_at TEXT DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_social_journal_username ON social_journal(username);
+CREATE INDEX IF NOT EXISTS idx_social_journal_category ON social_journal(category);
+GRANT ALL ON TABLE public.social_journal TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.social_journal_id_seq TO service_role;
+
+-- Contoh data awal untuk pengujian (di-comment; aktifkan jika butuh user demo):
+-- INSERT INTO users (username, email, password, is_premium_until, sheet_url)
+-- VALUES
+--   ('premium', 'premium@example.com', '123456', '9999-01-01', ''),
+--   ('demo', 'demo@example.com', '123456', NULL, '')
+-- ON CONFLICT (username) DO NOTHING;

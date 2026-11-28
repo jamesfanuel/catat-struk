@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
 
 const CATEGORIES = [
-  'Makanan & Minuman',
-  'Belanja',
-  'Transportasi',
-  'Tagihan',
-  'Kesehatan',
-  'Hiburan',
-  'Lainnya',
+  'Daily Needs',
+  'Emergency',
+  'Self Reward',
 ];
 
 export async function POST(request) {
@@ -34,7 +30,7 @@ export async function POST(request) {
 {
   "merchant": "nama toko/bengkel/merchant (lihat kop/stempel jika ada)",
   "date": "YYYY-MM-DD (konversi format DD-MM-YY atau DD/MM/YY jika ada; gunakan ${fallbackDate} jika tidak terbaca)",
-  "category": "salah satu dari: Makanan & Minuman, Belanja, Transportasi, Tagihan, Kesehatan, Hiburan, Lainnya",
+  "category": "salah satu dari: Daily Needs, Emergency, Self Reward",
   "total": 0,
   "tax": 0,
   "service": 0,

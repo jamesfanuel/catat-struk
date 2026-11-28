@@ -9,3 +9,6 @@ node_modules/
 .env*
 
 *.mp4
+
+# Local development JSON dummy data (keep db/schema.sql & db/README.md tracked)
+db/*.json
