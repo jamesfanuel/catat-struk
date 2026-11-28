@@ -443,6 +443,38 @@ export default function AppNavigation({ showWhatsNew = true }) {
 
           <div className="sidebar-divider" />
 
+          <button
+            type="button"
+            className="sidebar-nav-item"
+            onClick={() => {
+              setMenuOpen(false);
+              if (pathname === '/') document.getElementById('input-gallery')?.click();
+              else router.push('/');
+            }}
+          >
+            <span className="sidebar-nav-icon">📸</span>
+            <div>
+              <strong>{lang === 'en' ? 'Upload / Scan Receipt' : 'Unggah / Foto Struk'}</strong>
+              <small>{lang === 'en' ? 'Scan up to 5 receipts with AI' : 'Scan hingga 5 struk otomatis'}</small>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="sidebar-nav-item"
+            onClick={() => {
+              setMenuOpen(false);
+              if (pathname === '/') document.getElementById('btn-manual')?.click();
+              else router.push('/');
+            }}
+          >
+            <span className="sidebar-nav-icon">✍️</span>
+            <div>
+              <strong>{lang === 'en' ? 'Manual Entry' : 'Input Manual'}</strong>
+              <small>{lang === 'en' ? 'Record a receipt manually' : 'Catat struk secara manual'}</small>
+            </div>
+          </button>
+
           <button type="button" className="sidebar-nav-item" onClick={handleOpenSheetGuide}>
             <span className="sidebar-nav-icon">🔗</span>
             <div>
@@ -485,6 +517,24 @@ export default function AppNavigation({ showWhatsNew = true }) {
             <div>
               <strong>{t.navSettings}</strong>
               <small>{t.navSettingsSub}</small>
+            </div>
+          </button>
+
+          <div className="sidebar-divider" />
+
+          <button type="button" className="sidebar-nav-item" onClick={handleToggleLang}>
+            <span className="sidebar-nav-icon">{lang === 'en' ? '🇮🇩' : '🇬🇧'}</span>
+            <div>
+              <strong>{lang === 'en' ? 'Language: English (EN)' : 'Bahasa: Indonesia (ID)'}</strong>
+              <small>{lang === 'en' ? 'Tap to switch to Bahasa Indonesia' : 'Ketuk untuk ganti ke English'}</small>
+            </div>
+          </button>
+
+          <button type="button" className="sidebar-nav-item" onClick={handleToggleTheme}>
+            <span className="sidebar-nav-icon">{isDark ? '☀️' : '🌙'}</span>
+            <div>
+              <strong>{isDark ? (lang === 'en' ? 'Light Mode' : 'Mode Terang') : (lang === 'en' ? 'Dark Mode' : 'Mode Gelap')}</strong>
+              <small>{lang === 'en' ? 'Switch appearance theme' : 'Ganti tema tampilan'}</small>
             </div>
           </button>
 

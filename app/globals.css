@@ -118,7 +118,7 @@ body.scroll-locked {
 }
 
 .topbar-desktop-action {
-  display: none;
+  display: none !important;
 }
 
 @media (max-width: 899px) {
@@ -127,6 +127,21 @@ body.scroll-locked {
   .app-shell {
     overflow-x: hidden;
     max-width: 100%;
+  }
+
+  .app-shell {
+    padding-bottom: 24px !important;
+  }
+
+  .topbar {
+    position: static !important;
+  }
+
+  .topbar-desktop-action,
+  .topbar #btn-lang,
+  .topbar #btn-theme,
+  .bottom-nav {
+    display: none !important;
   }
 
   .main-content {
@@ -4754,7 +4769,7 @@ body.scroll-locked {
   }
 
   .topbar-desktop-action {
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
     gap: 5px;
     height: 40px;
